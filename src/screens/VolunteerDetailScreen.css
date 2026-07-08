@@ -1,0 +1,114 @@
+.volunteer-detail__label {
+  background: #a9776e;
+}
+
+.volunteer-detail__intro {
+  margin: 0 0 8px;
+  font-size: 14px;
+  white-space: pre-wrap;
+}
+
+.volunteer-detail__slots-section {
+  margin-top: 32px;
+}
+
+.volunteer-detail__slots-section h2 {
+  font-size: 18px;
+  margin: 0 0 16px;
+  color: var(--text-h);
+}
+
+.volunteer-detail__slot-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.volunteer-detail__slot-card {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  background: var(--bg);
+  text-align: left;
+}
+
+.volunteer-detail__slot-thumb {
+  flex: 0 0 96px;
+  width: 96px;
+  height: 96px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--social-bg);
+}
+
+.volunteer-detail__slot-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.volunteer-detail__slot-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.volunteer-detail__slot-title {
+  margin: 0 0 8px;
+  padding-bottom: 8px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-h);
+  border-bottom: 1px solid var(--border);
+}
+
+.volunteer-detail__slot-dog-link {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+  text-align: left;
+}
+
+.volunteer-detail__slot-dog-link:hover {
+  text-decoration: underline;
+}
+
+.volunteer-detail__slot-fact-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.volunteer-detail__slot-fact-list>div {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.volunteer-detail__slot-fact-list dt {
+  flex: 0 0 44px;
+  color: var(--text);
+}
+
+.volunteer-detail__slot-fact-list dd {
+  margin: 0;
+  color: var(--text-h);
+}

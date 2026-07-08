@@ -1,0 +1,91 @@
+.mapbox-map {
+  position: absolute;
+  inset: 0;
+}
+
+.map-marker-anchor {
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+.map-pin {
+  /* border-radiusで欠けさせている角(左下)が実際の先端になる。
+     回転の中心(transform-origin)をその先端(left bottom)に一致させることで、
+     回転させても先端が常にアンカー座標から動かないようにしている。
+     (以前は中心を"bottom center"にしていたため、先端が回転半径分だけ
+     常に一定方向・一定距離ずれてしまい、縮小するほど実距離として目立っていた) */
+  position: absolute;
+  left: 0;
+  top: 0;
+  translate: 0 -100%;
+  transform-origin: left bottom;
+  width: 32px;
+  height: 32px;
+  border-radius: 50% 50% 50% 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--bg);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  padding: 0;
+  rotate: -45deg;
+}
+
+.map-pin:focus-visible {
+  outline: 2px solid var(--text-h);
+  outline-offset: 2px;
+}
+
+.map-pin__icon {
+  rotate: 45deg;
+  font-size: 14px;
+}
+
+.map-pin--organization-seeking {
+  background: var(--pin-org-seeking);
+}
+.map-pin--organization {
+  background: var(--pin-org);
+}
+.map-pin--volunteer-available {
+  background: var(--pin-vol-available);
+}
+.map-pin--volunteer {
+  background: var(--pin-vol);
+}
+
+.map-cluster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 3px solid var(--bg);
+  box-shadow: var(--shadow);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.map-cluster:focus-visible {
+  outline: 2px solid var(--text-h);
+  outline-offset: 2px;
+}
+
+.map-cluster--organization {
+  background: var(--pin-org-seeking);
+}
+
+.map-cluster--volunteer {
+  background: var(--pin-vol-available);
+}
+
+.map-reset-view-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  line-height: 1;
+}

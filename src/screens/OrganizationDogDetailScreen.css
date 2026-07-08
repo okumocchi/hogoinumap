@@ -1,0 +1,555 @@
+.org-dog-detail {
+  flex: 1;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.org-dog-detail__topbar {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  z-index: 1;
+}
+
+.org-dog-detail__back {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 22px;
+  font-weight: 700;
+  padding: 4px 8px;
+  margin-left: -8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.org-dog-detail__body {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.org-dog-detail__heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.org-dog-detail__heading-row h1 {
+  margin: 0;
+  font-size: 28px;
+  color: var(--text-h);
+}
+
+.org-dog-detail__heading-row h2 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text-h);
+}
+
+.org-dog-detail__edit-button {
+  flex-shrink: 0;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.org-dog-detail__edit-button:hover {
+  transform: scale(1.05);
+}
+
+.org-dog-detail__add-media-button {
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.org-dog-detail__facts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px 24px;
+  margin: 0;
+}
+
+.org-dog-detail__facts div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.org-dog-detail__facts dt {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.org-dog-detail__facts dd {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.org-dog-detail__empty {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.org-dog-detail__foster-request {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  background: var(--social-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.org-dog-detail__foster-request p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.org-dog-detail__foster-request-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.org-dog-detail__upload-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: var(--social-bg);
+}
+
+.org-dog-detail__upload-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.org-dog-detail__upload-field input {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.org-dog-detail__upload-form h3 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-h);
+}
+
+.org-dog-detail__edit-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.org-dog-detail__delete-button {
+  border: 1px solid rgba(180, 40, 10, 0.4);
+  background: rgba(180, 40, 10, 0.1);
+  color: #b4280a;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.org-dog-detail__delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.org-dog-detail__link-button {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.org-dog-detail__error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(180, 96, 10, 0.35);
+  background: rgba(180, 96, 10, 0.1);
+  color: #b4600a;
+  font-size: 13px;
+}
+
+.org-dog-detail__primary-button {
+  align-self: flex-start;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.org-dog-detail__primary-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.org-dog-detail__media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+
+.org-dog-detail__media-card {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  aspect-ratio: 1 / 1;
+}
+
+.org-dog-detail__media-age-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 12;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 3px 7px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.org-dog-detail__media-edit-button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 12;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.2s, transform 0.1s;
+}
+
+.org-dog-detail__media-edit-button:hover {
+  background: rgba(0, 0, 0, 0.85);
+  transform: scale(1.05);
+}
+
+.org-dog-detail__media-container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.org-dog-detail__media-thumb {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  object-fit: cover;
+}
+
+.org-dog-detail__media-thumb--clickable {
+  cursor: pointer;
+}
+
+.org-dog-detail__media-caption-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 38px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.org-dog-detail__media-caption {
+  margin: 0;
+  padding: 0 10px;
+  font-size: 20px;
+  color: #fff;
+  white-space: nowrap;
+  display: inline-block;
+  animation: caption-scroll 8s linear infinite;
+}
+
+@keyframes caption-scroll {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.org-dog-detail__lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 30;
+  cursor: pointer;
+}
+
+.org-dog-detail__lightbox-image,
+.org-dog-detail__lightbox-video {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  cursor: default;
+}
+
+.org-dog-detail__modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  padding: 20px;
+}
+
+.org-dog-detail__modal {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 480px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.org-dog-detail__modal h3 {
+  margin: 0 0 16px;
+  font-size: 18px;
+  color: var(--text-h);
+}
+
+.org-dog-detail__modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.org-dog-detail__modal-field input {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.org-dog-detail__modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.org-dog-detail__modal-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.org-dog-detail__danger-button {
+  background: none;
+  border: none;
+  color: #d32f2f;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 0;
+}
+
+.org-dog-detail__danger-button:hover {
+  text-decoration: underline;
+}
+
+.org-dog-detail__danger-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.org-dog-detail__small-button {
+  padding: 6px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.org-dog-detail__small-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* 預かり履歴スタイル */
+.org-dog-detail__history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.org-dog-detail__history-item {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+}
+
+.org-dog-detail__history-view-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.org-dog-detail__history-date {
+  flex: 0 0 auto;
+  color: var(--text);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.org-dog-detail__history-name {
+  color: var(--text-h);
+}
+
+.org-dog-detail__history-edit-trigger {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 2px;
+  font-size: 13px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.org-dog-detail__history-edit-trigger:hover {
+  opacity: 1;
+}
+
+/* インライン編集行のスタイル */
+.org-dog-detail__history-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.org-dog-detail__history-date-input {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 14px;
+}
+
+.org-dog-detail__history-save-button {
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.org-dog-detail__history-save-button:hover {
+  opacity: 0.9;
+}
+
+.org-dog-detail__history-cancel-button {
+  border: 1px solid var(--border);
+  background: var(--social-bg);
+  color: var(--text);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.org-dog-detail__history-cancel-button:hover {
+  background: var(--bg);
+}

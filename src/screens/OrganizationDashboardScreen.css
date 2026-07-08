@@ -1,0 +1,352 @@
+.org-dashboard {
+  flex: 1;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.org-dashboard__topbar {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  z-index: 1;
+}
+
+.org-dashboard__back {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 22px;
+  font-weight: 700;
+  padding: 4px 8px;
+  margin-left: -8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.org-dashboard__body {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+.org-dashboard__body h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  color: var(--text-h);
+}
+
+.org-dashboard__heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.org-dashboard__facts {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 16px 0 24px;
+}
+
+.org-dashboard__facts dt {
+  font-size: 12px;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.org-dashboard__facts dd {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-h);
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.org-dashboard__facts dd a {
+  color: var(--accent);
+}
+
+.org-dashboard__edit-button {
+  flex-shrink: 0;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.org-dashboard__edit-button:hover {
+  transform: scale(1.05);
+}
+
+.org-dashboard__org-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.org-dashboard__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.org-dashboard__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.org-dashboard__field input,
+.org-dashboard__field select {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.org-dashboard__link-button {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.org-dashboard__form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.org-dashboard__actions {
+  margin-bottom: 20px;
+}
+
+.org-dashboard__empty {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.org-dashboard__dog-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.org-dashboard__dog-card {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--social-bg);
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.org-dashboard__dog-thumb {
+  flex: 0 0 54px;
+  width: 54px;
+  height: 54px;
+  border-radius: 8px;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  background-size: cover;
+  background-position: center;
+}
+
+.org-dashboard__dog-thumb-fallback {
+  opacity: 0.6;
+}
+
+.org-dashboard__dog-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.org-dashboard__dog-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.org-dashboard__dog-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.org-dashboard__dog-status {
+  font-size: 12px;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 10px;
+  white-space: nowrap;
+}
+
+.org-dashboard__dog-meta {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.org-dashboard__primary-button {
+  padding: 14px 20px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.org-dashboard__primary-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.org-dashboard__section {
+  margin-bottom: 24px;
+}
+
+.org-dashboard__section h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  margin: 0 0 12px;
+  color: var(--text-h);
+}
+
+.org-dashboard__section-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #c0392b;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.org-dashboard__error {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(180, 96, 10, 0.35);
+  background: rgba(180, 96, 10, 0.1);
+  color: #b4600a;
+  font-size: 13px;
+}
+
+.org-dashboard__affiliation-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.org-dashboard__affiliation-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--social-bg);
+}
+
+.org-dashboard__affiliation-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.org-dashboard__affiliation-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.org-dashboard__affiliation-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.org-dashboard__approve-button {
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.org-dashboard__reject-button {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.org-dashboard__approve-button:disabled,
+.org-dashboard__reject-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.org-dashboard__affiliation-meta {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.org-dashboard__affiliation-message {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--text);
+  white-space: pre-wrap;
+}

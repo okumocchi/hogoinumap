@@ -1,0 +1,90 @@
+.dog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dog-form h2 {
+  font-size: 15px;
+  margin: 0 0 -4px;
+  color: var(--text-h);
+}
+
+.dog-form__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: end;
+}
+
+.dog-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.dog-form__field--checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.dog-form__field input,
+.dog-form__field select,
+.dog-form__field textarea {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 15px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.dog-form__field--checkbox input {
+  width: auto;
+}
+
+.dog-form__error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(180, 96, 10, 0.35);
+  background: rgba(180, 96, 10, 0.1);
+  color: #b4600a;
+  font-size: 13px;
+}
+
+.dog-form__primary-button {
+  padding: 14px 20px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dog-form__primary-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.dog-form__link-button {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.dog-form__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}

@@ -1,0 +1,140 @@
+.org-signup {
+  /* このフォームだけ背景色と文字色を通常のテーマから反転させる */
+  --org-bg: var(--text-h);
+  --org-fg: var(--bg);
+
+  flex: 1;
+  overflow-y: auto;
+  text-align: left;
+  background: var(--org-bg);
+  color: var(--org-fg);
+}
+
+.org-signup__topbar {
+  position: sticky;
+  top: 0;
+  background: var(--org-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  z-index: 1;
+}
+
+.org-signup__back {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 14px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.org-signup__body {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+.org-signup__body h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: var(--org-fg);
+}
+
+.org-signup__lead {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: var(--org-fg);
+  opacity: 0.8;
+}
+
+.org-signup__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.org-signup__form h2 {
+  font-size: 15px;
+  margin: 8px 0 -4px;
+  color: var(--org-fg);
+}
+
+.org-signup__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.org-signup__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--org-fg);
+}
+
+.org-signup__field input,
+.org-signup__field select {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--org-bg);
+  color: var(--org-fg);
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.org-signup__field small {
+  color: var(--org-fg);
+  opacity: 0.8;
+}
+
+.org-signup__error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(180, 96, 10, 0.35);
+  background: rgba(180, 96, 10, 0.1);
+  color: #b4600a;
+  font-size: 13px;
+}
+
+.org-signup__notice {
+  margin: 0;
+  font-size: 13px;
+  color: var(--org-fg);
+}
+
+.org-signup__primary-button {
+  padding: 14px 20px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.org-signup__primary-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.org-signup__link-button {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.org-signup__done {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding-top: 64px;
+}

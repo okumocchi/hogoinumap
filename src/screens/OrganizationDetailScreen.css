@@ -1,0 +1,243 @@
+.organization-detail {
+  flex: 1;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.organization-detail--not-found {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 20px;
+  text-align: center;
+}
+
+.organization-detail__topbar {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  z-index: 1;
+}
+
+.organization-detail__back {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 14px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.organization-detail__body {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+.organization-detail__label {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: #a9776e;
+}
+
+.organization-detail__name {
+  margin: 0 0 4px;
+  font-size: 24px;
+}
+
+.organization-detail__meta {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.organization-detail__wishlist {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--accent);
+}
+
+.organization-detail__section-title {
+  margin: 24px 0 12px;
+  font-size: 16px;
+}
+
+.organization-detail__chat-action {
+  margin: 12px 0 0;
+}
+
+.organization-detail__chat-button {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.organization-detail__chat-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.organization-detail__error {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #b4600a;
+}
+
+.organization-detail__dogs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.organization-detail__empty {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.dog-summary-card {
+  display: flex;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--social-bg);
+  cursor: pointer;
+  text-align: left;
+}
+
+.dog-summary-card__thumb {
+  flex: 0 0 72px;
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  overflow: hidden;
+}
+
+.dog-summary-card__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.dog-summary-card__thumb-fallback {
+  opacity: 0.6;
+}
+
+.dog-summary-card__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+}
+
+.dog-summary-card__heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dog-summary-card__name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.dog-summary-card__badges {
+  display: flex;
+  gap: 6px;
+}
+
+.dog-summary-card__meta {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.foster-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 10;
+}
+
+.foster-confirm-modal {
+  width: 100%;
+  max-width: 320px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  text-align: center;
+}
+
+.foster-confirm-modal__title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: var(--text-h);
+}
+
+.foster-confirm-modal__error {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: #b4600a;
+}
+
+.foster-confirm-modal__message {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.foster-confirm-modal__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.foster-confirm-modal__button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.foster-confirm-modal__button--secondary {
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+}
+
+.foster-confirm-modal__button--primary {
+  border: none;
+  background: var(--accent);
+  color: var(--accent-contrast);
+}

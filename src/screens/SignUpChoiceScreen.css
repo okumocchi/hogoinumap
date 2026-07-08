@@ -1,0 +1,71 @@
+.signup-choice {
+  flex: 1;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.signup-choice__topbar {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  z-index: 1;
+}
+
+.signup-choice__back {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 14px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.signup-choice__body {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.signup-choice__body h1 {
+  margin: 0 0 4px;
+  font-size: 26px;
+}
+
+.signup-choice__lead {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.signup-choice__card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--social-bg);
+  cursor: pointer;
+  text-align: left;
+}
+
+.signup-choice__card:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+}
+
+.signup-choice__card-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.signup-choice__card-desc {
+  font-size: 13px;
+  color: var(--text);
+}

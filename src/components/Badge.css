@@ -1,0 +1,44 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.badge--accent {
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+}
+
+.badge--success {
+  color: #6f8a3f;
+  background: rgba(111, 138, 63, 0.12);
+  border: 1px solid rgba(111, 138, 63, 0.35);
+}
+
+.badge--neutral {
+  color: var(--text);
+  background: var(--social-bg);
+  border: 1px solid var(--border);
+}
+
+.badge--warning {
+  color: #b4600a;
+  background: rgba(180, 96, 10, 0.1);
+  border: 1px solid rgba(180, 96, 10, 0.35);
+}
+
+.badge--clickable {
+  cursor: pointer;
+  font: inherit;
+}
+
+.badge--clickable:hover {
+  filter: brightness(1.08);
+}
