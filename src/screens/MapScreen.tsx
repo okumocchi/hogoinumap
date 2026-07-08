@@ -42,7 +42,7 @@ export function MapScreen({
   onOpenDashboard,
   dashboardBadgeCount,
 }: MapScreenProps) {
-  const [prefectureFilter, setPrefectureFilter] = useState<string>('all');
+  const prefectureFilter = 'all';
   const [showSeekingOrgs, setShowSeekingOrgs] = useState(true);
   const [showAvailableVolunteers, setShowAvailableVolunteers] = useState(true);
   const [selectedPin, setSelectedPin] = useState<SelectedPin | null>(null);
@@ -56,11 +56,11 @@ export function MapScreen({
   const registeredVolunteers = useRegisteredVolunteers();
   const allVolunteers: Volunteer[] = registeredVolunteers;
 
-  const prefectureOptions = useMemo(
-    () =>
-      Array.from(new Set([...allOrganizations.map((o) => o.prefecture), ...allVolunteers.map((v) => v.prefecture)])),
-    [allOrganizations, allVolunteers],
-  );
+  // const prefectureOptions = useMemo(
+  //   () =>
+  //     Array.from(new Set([...allOrganizations.map((o) => o.prefecture), ...allVolunteers.map((v) => v.prefecture)])),
+  //   [allOrganizations, allVolunteers],
+  // );
 
   const orgSeekingMap = useMemo(() => {
     const map = new Map<string, boolean>();

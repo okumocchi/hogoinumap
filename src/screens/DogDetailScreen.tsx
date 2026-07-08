@@ -1,6 +1,6 @@
 import { fetchAuthSession, getCurrentUser } from 'aws-amplify/auth';
 import { getUrl, remove } from 'aws-amplify/storage';
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { Badge } from '../components/Badge';
 import { useRegisteredDogs } from '../hooks/useRegisteredDogs';
 import { useRegisteredOrganizations } from '../hooks/useRegisteredOrganizations';

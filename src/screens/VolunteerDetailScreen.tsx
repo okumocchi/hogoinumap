@@ -1,13 +1,11 @@
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { useEffect, useMemo, useState } from 'react';
-import { Badge } from '../components/Badge';
 import { SlotPlaceholderIcon } from '../components/SlotPlaceholderIcon';
 import { useDogThumbnails } from '../hooks/useDogThumbnails';
-import { useRegisteredDogs } from '../hooks/useRegisteredDogs';
 import { useRegisteredVolunteers } from '../hooks/useRegisteredVolunteers';
 import { dataClient } from '../lib/dataClient';
 import type { ChatParticipant, ChatParticipantKind } from '../lib/chat';
-import type { Dog, Volunteer } from '../types/models';
+import type { Volunteer } from '../types/models';
 import { calculateAgeLabel, effectiveDogStatusLabel, genderLabel } from '../utils/dog';
 import './OrganizationDetailScreen.css';
 import './VolunteerDetailScreen.css';
@@ -90,7 +88,7 @@ export function VolunteerDetailScreen({
     let cancelled = false;
     async function loadSlotsData() {
       try {
-        const session = await fetchAuthSession().catch(() => ({}));
+        const session = await fetchAuthSession();
         const authMode = session.tokens ? 'userPool' : 'identityPool';
 
         const slotResult = await dataClient.models.FosteringSlot.listFosteringSlotsByVolunteer(
@@ -179,7 +177,7 @@ export function VolunteerDetailScreen({
       <div className="organization-detail organization-detail--not-found">
         <p>ボランティア情報が見つかりませんでした。</p>
         <button type="button" onClick={onBack}>
-          &lt;
+          {backLabel}
         </button>
       </div>
     );

@@ -107,7 +107,7 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
         {
           id,
           startDate: editingDateValue,
-        },
+        } as any,
         { authMode: 'userPool' }
       );
       if (result.errors?.length) {

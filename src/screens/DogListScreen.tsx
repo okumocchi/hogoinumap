@@ -6,7 +6,7 @@ import { Badge } from '../components/Badge';
 import { useRegisteredDogs } from '../hooks/useRegisteredDogs';
 import { useRegisteredOrganizations } from '../hooks/useRegisteredOrganizations';
 import { dataClient } from '../lib/dataClient';
-import type { Dog, MediaType } from '../types/models';
+import type { Dog } from '../types/models';
 import { calculateAgeLabel, effectiveDogStatusLabel, genderLabel, isDogOpenForFosterOffers } from '../utils/dog';
 import './DogListScreen.css';
 
@@ -41,7 +41,7 @@ export function DogListScreen({
   const allDogs = registeredDogs;
   const allOrganizations = registeredOrganizations;
 
-  const [prefectureFilter, setPrefectureFilter] = useState<string>('all');
+  const prefectureFilter = 'all';
   const [seekingOnly, setSeekingOnly] = useState(false);
 
   const [registeredMedia, setRegisteredMedia] = useState<
@@ -97,10 +97,9 @@ export function DogListScreen({
     }
   }, [registeredDogs]);
 
-  // 都道府県の絞り込み選択肢 (登録されている犬のデータも合わせる)
-  const prefectureOptions = useMemo(() => {
-    return Array.from(new Set(allDogs.map((dog) => dog.prefecture).filter(Boolean))) as string[];
-  }, [allDogs]);
+  // const prefectureOptions = useMemo(() => {
+  //   return Array.from(new Set(allDogs.map((dog) => dog.prefecture).filter(Boolean))) as string[];
+  // }, [allDogs]);
 
   const dogs: Dog[] = useMemo(
     () =>
