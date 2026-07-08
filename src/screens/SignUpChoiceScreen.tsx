@@ -18,15 +18,16 @@ export function SignUpChoiceScreen({ onBack, onSelectOrganization, onSelectVolun
         <h1>新規登録</h1>
         <p className="signup-choice__lead">登録する種別を選んでください。</p>
 
+        <button type="button" className="signup-choice__card" onClick={onSelectVolunteer}>
+          <span className="signup-choice__card-title">預かりボランティアとして登録</span>
+          <span className="signup-choice__card-desc">預かりスロットの登録や、団体へのボランティア登録申請ができます。</span>
+        </button>
+
         <button type="button" className="signup-choice__card" onClick={onSelectOrganization}>
           <span className="signup-choice__card-title">保護団体として登録</span>
           <span className="signup-choice__card-desc">保護犬の情報登録や、預かりボランティアの募集ができます。</span>
         </button>
 
-        <button type="button" className="signup-choice__card" onClick={onSelectVolunteer}>
-          <span className="signup-choice__card-title">預かりボランティアとして登録</span>
-          <span className="signup-choice__card-desc">預かりスロットの登録や、団体への所属申請ができます。</span>
-        </button>
       </div>
     </div>
   );

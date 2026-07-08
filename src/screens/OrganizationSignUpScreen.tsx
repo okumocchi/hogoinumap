@@ -21,9 +21,11 @@ interface FormState {
   prefecture: string;
   city: string;
   addressLine: string;
+  building: string;
   contactEmail: string;
   contactPhone: string;
   wishlistUrl: string;
+  websiteUrl: string;
 }
 
 const INITIAL_FORM: FormState = {
@@ -34,9 +36,11 @@ const INITIAL_FORM: FormState = {
   prefecture: PREFECTURES[0],
   city: '',
   addressLine: '',
+  building: '',
   contactEmail: '',
   contactPhone: '',
   wishlistUrl: '',
+  websiteUrl: '',
 };
 
 export function OrganizationSignUpScreen({ onBack, onComplete }: OrganizationSignUpScreenProps) {
@@ -52,23 +56,27 @@ export function OrganizationSignUpScreen({ onBack, onComplete }: OrganizationSig
   }
 
   async function completeRegistration() {
-    // 地図表示用に、番地まで含めた実際の所在地の緯度経度を求めておく
+    // ジオコーディングには番地のみを使用し、建物名は除外することでMapBoxの緯度経度取得の精度を向上させます
     const geocoded = await geocodeAddress(form.prefecture, form.city, form.addressLine);
 
     // ボランティアが所属申請(Affiliation)を作成する際にowners配列を組み立てられるよう、
     // owner認可の内部フィールドと同じ形式(sub::username)の値を明示的なフィールドとして保存する
     const { userId, username } = await getCurrentUser();
 
+    // データベースには番地と建物名を結合した完全な住所文字列を保存します
+    const fullAddressLine = form.building ? `${form.addressLine} ${form.building}` : form.addressLine;
+
     const organizationInput = {
       name: form.name,
       prefecture: form.prefecture,
       city: form.city,
-      addressLine: form.addressLine,
+      addressLine: fullAddressLine,
       latitude: geocoded?.latitude,
       longitude: geocoded?.longitude,
       contactEmail: form.contactEmail || undefined,
       contactPhone: form.contactPhone || undefined,
       wishlistUrl: form.wishlistUrl || undefined,
+      websiteUrl: form.websiteUrl || undefined,
       ownerSub: `${userId}::${username}`,
     };
     // @aws-amplify/data-schema(1.26.0)には、必須のstringフィールドがcreate()の
@@ -262,16 +270,33 @@ export function OrganizationSignUpScreen({ onBack, onComplete }: OrganizationSig
             </label>
           </div>
           <label className="org-signup__field">
-            <span>番地・建物名など</span>
+            <span>町名・番地</span>
             <input
               type="text"
               required
-              placeholder="例: 1-2-3 ○○ビル4F"
+              placeholder="例: 神南1-2-3"
               value={form.addressLine}
               onChange={(e) => updateField('addressLine', e.target.value)}
             />
           </label>
           <label className="org-signup__field">
+            <span>建物名・部屋番号(任意)</span>
+            <input
+              type="text"
+              placeholder="例: ○○ビル4F"
+              value={form.building}
+              onChange={(e) => updateField('building', e.target.value)}
+            />
+          </label>
+          <label className="org-signup__field">
+            <span>WEBサイトURL(任意)</span>
+            <input
+              type="url"
+              value={form.websiteUrl}
+              onChange={(e) => updateField('websiteUrl', e.target.value)}
+            />
+          </label>
+          {/* <label className="org-signup__field">
             <span>連絡先メールアドレス(任意)</span>
             <input
               type="email"
@@ -286,7 +311,7 @@ export function OrganizationSignUpScreen({ onBack, onComplete }: OrganizationSig
               value={form.contactPhone}
               onChange={(e) => updateField('contactPhone', e.target.value)}
             />
-          </label>
+          </label> */}
           <label className="org-signup__field">
             <span>ほしいものリストURL(任意)</span>
             <input
@@ -295,6 +320,7 @@ export function OrganizationSignUpScreen({ onBack, onComplete }: OrganizationSig
               onChange={(e) => updateField('wishlistUrl', e.target.value)}
             />
           </label>
+
 
           {error && <p className="org-signup__error">{error}</p>}
 

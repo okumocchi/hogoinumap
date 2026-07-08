@@ -43,8 +43,8 @@ export function MapScreen({
   dashboardBadgeCount,
 }: MapScreenProps) {
   const prefectureFilter = 'all';
-  const [showSeekingOrgs, setShowSeekingOrgs] = useState(true);
-  const [showAvailableVolunteers, setShowAvailableVolunteers] = useState(true);
+  const [showSeekingOrgs, setShowSeekingOrgs] = useState(false);
+  const [showAvailableVolunteers, setShowAvailableVolunteers] = useState(false);
   const [selectedPin, setSelectedPin] = useState<SelectedPin | null>(null);
 
   const registeredOrganizations = useRegisteredOrganizations();
