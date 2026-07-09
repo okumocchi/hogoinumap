@@ -39,7 +39,8 @@ export function useRegisteredDogs(): Dog[] {
         city: dog.city,
       }));
 
-      setDogs(mapped);
+      const filtered = mapped.filter((dog) => dog.status !== 'SUSPENDED');
+      setDogs(filtered);
     }
 
     load();

@@ -227,6 +227,9 @@ export function VolunteerDetailScreen({
             <ul className="volunteer-detail__slot-list">
               {slots.map((slot) => {
                 const occupant = slotOccupants[slot.id];
+                if (occupant && occupant.status === 'SUSPENDED') {
+                  return null;
+                }
                 return (
                   <li key={slot.id}>
                     <div className="volunteer-detail__slot-card">

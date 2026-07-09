@@ -3,7 +3,7 @@
 
 export type DogGender = 'MALE' | 'FEMALE' | 'UNKNOWN';
 export type DogSize = 'SMALL' | 'MEDIUM' | 'LARGE';
-export type DogStatus = 'PROTECTED' | 'FOSTERED' | 'ADOPTED' | 'RETURNED' | 'IN_TRANSIT';
+export type DogStatus = 'PROTECTED' | 'FOSTERED' | 'ADOPTED' | 'RETURNED' | 'IN_TRANSIT' | 'SUSPENDED';
 export type MediaType = 'PHOTO' | 'VIDEO';
 
 export interface Organization {

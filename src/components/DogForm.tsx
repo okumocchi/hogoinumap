@@ -229,6 +229,7 @@ export function DogForm({ initialValues, submitLabel, submitting, submitError, o
           <option value="IN_TRANSIT">搬送中</option>
           <option value="ADOPTED">譲渡済み</option>
           <option value="RETURNED">返還済み</option>
+          <option value="SUSPENDED">公開停止中</option>
         </select>
       </label>
       <label className="dog-form__field dog-form__field--checkbox">

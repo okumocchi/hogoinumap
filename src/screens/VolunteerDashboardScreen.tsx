@@ -113,7 +113,7 @@ const INITIAL_SLOT_FORM: SlotFormState = {
 
 type SlotFormMode = { type: 'closed' } | { type: 'add' } | { type: 'edit'; slotId: string };
 
-type CustodyDogStatus = 'PROTECTED' | 'IN_TRANSIT';
+type CustodyDogStatus = 'PROTECTED' | 'IN_TRANSIT' | 'SUSPENDED';
 
 interface CustodyDogInfo {
   id: string;
@@ -194,7 +194,7 @@ export function VolunteerDashboardScreen({ volunteer, onBack, onUpdated, onSelec
       { authMode: 'userPool' },
     );
     return result.data
-      .filter((dog): dog is typeof dog & { status: CustodyDogStatus } => dog.status === 'PROTECTED' || dog.status === 'IN_TRANSIT')
+      .filter((dog): dog is typeof dog & { status: CustodyDogStatus } => dog.status === 'PROTECTED' || dog.status === 'IN_TRANSIT' || dog.status === 'SUSPENDED')
       .map((dog) => ({ id: dog.id, name: dog.name ?? '', status: dog.status }));
   }
 
