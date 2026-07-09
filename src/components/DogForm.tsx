@@ -118,15 +118,6 @@ export function DogForm({ initialValues, submitLabel, submitting, submitError, o
       </label>
       <div className="dog-form__row">
         <label className="dog-form__field">
-          <span>保護日</span>
-          <input
-            type="date"
-            required
-            value={form.protectedDate}
-            onChange={(e) => updateField('protectedDate', e.target.value)}
-          />
-        </label>
-        <label className="dog-form__field">
           <span>性別</span>
           <select value={form.gender} onChange={(e) => updateField('gender', e.target.value as DogGender)}>
             <option value="MALE">オス</option>
@@ -134,18 +125,6 @@ export function DogForm({ initialValues, submitLabel, submitting, submitError, o
             <option value="UNKNOWN">不明</option>
           </select>
         </label>
-      </div>
-      <div className="dog-form__row">
-        <label className="dog-form__field">
-          <span>大きさ</span>
-          <select value={form.size} onChange={(e) => updateField('size', e.target.value as DogSize)}>
-            <option value="SMALL">小型</option>
-            <option value="MEDIUM">中型</option>
-            <option value="LARGE">大型</option>
-          </select>
-        </label>
-      </div>
-      <div className="dog-form__row">
         <label className="dog-form__field">
           <span>保護時の年齢</span>
           <select value={form.ageAtProtection} onChange={(e) => handleAgeAtProtectionChange(e.target.value)}>
@@ -157,6 +136,10 @@ export function DogForm({ initialValues, submitLabel, submitting, submitError, o
             ))}
           </select>
         </label>
+      </div>
+
+      <div className="dog-form__row">
+
         <label className="dog-form__field">
           <span>生年月日</span>
           <input
@@ -166,28 +149,51 @@ export function DogForm({ initialValues, submitLabel, submitting, submitError, o
             onChange={(e) => updateField('birthDate', e.target.value)}
           />
         </label>
+        <label className="dog-form__field dog-form__field--checkbox">
+          <input
+            type="checkbox"
+            checked={form.birthDateEstimated}
+            onChange={(e) => updateField('birthDateEstimated', e.target.checked)}
+          />
+          <span>生年月日は推定</span>
+        </label>
       </div>
-      <label className="dog-form__field dog-form__field--checkbox">
-        <input
-          type="checkbox"
-          checked={form.birthDateEstimated}
-          onChange={(e) => updateField('birthDateEstimated', e.target.checked)}
-        />
-        <span>生年月日は推定</span>
+
+
+      <div className="dog-form__row">
+        <label className="dog-form__field">
+          <span>保護日</span>
+          <input
+            type="date"
+            required
+            value={form.protectedDate}
+            onChange={(e) => updateField('protectedDate', e.target.value)}
+          />
+        </label>
+        <label className="dog-form__field">
+          <span>大きさ</span>
+          <select value={form.size} onChange={(e) => updateField('size', e.target.value as DogSize)}>
+            <option value="SMALL">小型</option>
+            <option value="MEDIUM">中型</option>
+            <option value="LARGE">大型</option>
+          </select>
+        </label>
+      </div>
+
+      <label className="dog-form__field">
+        <span>保護の経緯</span>
+        <textarea required rows={2} value={form.story} onChange={(e) => updateField('story', e.target.value)} />
       </label>
       <label className="dog-form__field">
-        <span>性格</span>
+        <span>性格・状態</span>
         <textarea
           required
-          rows={2}
+          rows={4}
           value={form.personality}
           onChange={(e) => updateField('personality', e.target.value)}
         />
       </label>
-      <label className="dog-form__field">
-        <span>保護の経緯</span>
-        <textarea required rows={3} value={form.story} onChange={(e) => updateField('story', e.target.value)} />
-      </label>
+
       <h2>医療情報</h2>
       <div className="dog-form__row">
         <label className="dog-form__field">

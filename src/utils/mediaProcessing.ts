@@ -13,7 +13,7 @@ const VIDEO_BITS_PER_SECOND = 2_000_000; // 約2.0Mbps
 // 一覧表示用のサムネイル(長辺を300pxに縮小するのみで切り抜きは行わない。
 // 正方形表示が必要な箇所は表示側でCSSのobject-fit: coverにより中央を切り抜く)
 const THUMBNAIL_MAX_DIMENSION = 300;
-const THUMBNAIL_QUALITY = 0.85;
+const THUMBNAIL_QUALITY = 0.92;
 
 function replaceExtension(fileName: string, extension: string): string {
   return `${fileName.replace(/\.[^./]+$/, '')}.${extension}`;
