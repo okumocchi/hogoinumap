@@ -9,7 +9,11 @@ import { useRegisteredVolunteers } from '../hooks/useRegisteredVolunteers';
 import { useVolunteerFosterSummary } from '../hooks/useVolunteerFosterSummary';
 import type { Dog, MapPinData, Organization, Volunteer } from '../types/models';
 import { isDogOpenForFosterOffers } from '../utils/dog';
+import { useMyOrganization } from '../hooks/useMyOrganization';
+import { useMyVolunteer } from '../hooks/useMyVolunteer';
+import { dataClient } from '../lib/dataClient';
 import './MapScreen.css';
+
 
 type SelectedPin = MapPinSelection;
 
@@ -45,13 +49,20 @@ export function MapScreen({
   const [showAvailableVolunteers, setShowAvailableVolunteers] = useState(false);
   const [selectedPin, setSelectedPin] = useState<SelectedPin | null>(null);
 
-  const registeredOrganizations = useRegisteredOrganizations();
+  const [reloadTrigger, setReloadTrigger] = useState(0);
+  const [pendingLocation, setPendingLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [isUpdatingLocation, setIsUpdatingLocation] = useState(false);
+
+  const [myOrg] = useMyOrganization();
+  const [myVol] = useMyVolunteer();
+
+  const registeredOrganizations = useRegisteredOrganizations(reloadTrigger);
   const allOrganizations: Organization[] = registeredOrganizations;
 
   const registeredDogs = useRegisteredDogs();
   const allDogs: Dog[] = registeredDogs;
 
-  const registeredVolunteers = useRegisteredVolunteers();
+  const registeredVolunteers = useRegisteredVolunteers(reloadTrigger);
   const allVolunteers: Volunteer[] = registeredVolunteers;
 
   // const prefectureOptions = useMemo(
@@ -145,6 +156,35 @@ export function MapScreen({
     }
   }
 
+  async function handleConfirmLocationChange() {
+    if (!pendingLocation) return;
+    setIsUpdatingLocation(true);
+    try {
+      if (myOrg) {
+        const updateInput = {
+          id: myOrg.id,
+          latitude: pendingLocation.latitude,
+          longitude: pendingLocation.longitude,
+        };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await dataClient.models.Organization.update(updateInput as any);
+      } else if (myVol) {
+        await dataClient.models.Volunteer.update({
+          id: myVol.id,
+          latitude: pendingLocation.latitude,
+          longitude: pendingLocation.longitude,
+        });
+      }
+      setReloadTrigger((prev) => prev + 1);
+    } catch (err) {
+      console.error('Failed to update location:', err);
+      alert('位置情報の更新に失敗しました。');
+    } finally {
+      setIsUpdatingLocation(false);
+      setPendingLocation(null);
+    }
+  }
+
   return (
     <div className="map-screen">
       <AppHeader
@@ -190,6 +230,11 @@ export function MapScreen({
           volunteerPins={volunteerPins}
           onSelectPin={setSelectedPin}
           homeLocation={homeLocation}
+          onLongPress={
+            (myOrg || myVol) && !isUpdatingLocation
+              ? (lat, lng) => setPendingLocation({ latitude: lat, longitude: lng })
+              : undefined
+          }
         />
 
         <div className="map-screen__legend">
@@ -286,6 +331,30 @@ export function MapScreen({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {pendingLocation && (
+        <div className="map-screen__confirm-modal" role="dialog" aria-modal="true">
+          <h3 className="map-screen__confirm-title">ピンの位置をこの場所に変更しますか？</h3>
+          <div className="map-screen__confirm-actions">
+            <button
+              type="button"
+              className="map-screen__confirm-btn map-screen__confirm-btn--primary"
+              disabled={isUpdatingLocation}
+              onClick={handleConfirmLocationChange}
+            >
+              {isUpdatingLocation ? '更新中...' : 'はい'}
+            </button>
+            <button
+              type="button"
+              className="map-screen__confirm-btn map-screen__confirm-btn--secondary"
+              disabled={isUpdatingLocation}
+              onClick={() => setPendingLocation(null)}
+            >
+              いいえ
+            </button>
+          </div>
         </div>
       )}
     </div>

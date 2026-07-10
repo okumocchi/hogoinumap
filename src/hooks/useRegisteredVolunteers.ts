@@ -6,7 +6,7 @@ import type { Volunteer } from '../types/models';
 // 地図画面で「受入可能なボランティア」を表示するために、登録済みのボランティアと
 // 預かりスロットを全件取得する。スロットは「存在すること自体が空きあり」を意味するため、
 // スロットを1件以上持つボランティアのIDを集計してhasAvailableSlotを算出する。
-export function useRegisteredVolunteers(): Volunteer[] {
+export function useRegisteredVolunteers(trigger = 0): Volunteer[] {
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
 
   useEffect(() => {
@@ -60,7 +60,7 @@ export function useRegisteredVolunteers(): Volunteer[] {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [trigger]);
 
   return volunteers;
 }

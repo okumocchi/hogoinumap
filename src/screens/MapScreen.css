@@ -219,3 +219,60 @@
     gap: 12px;
   }
 }
+
+/* 位置更新の確認モーダル */
+.map-screen__confirm-modal {
+  position: absolute;
+  z-index: 10;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(340px, calc(100% - 32px));
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 20px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.map-screen__confirm-title {
+  margin: 0 0 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-h);
+  line-height: 1.5;
+}
+
+.map-screen__confirm-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.map-screen__confirm-btn {
+  flex: 1;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: opacity 0.2s;
+}
+
+.map-screen__confirm-btn:hover {
+  opacity: 0.9;
+}
+
+.map-screen__confirm-btn--primary {
+  background: var(--primary, #c1502e);
+  color: #fff;
+  border-color: transparent;
+}
+
+.map-screen__confirm-btn--secondary {
+  background: var(--social-bg, #f4f0ea);
+  color: var(--text, #555);
+}

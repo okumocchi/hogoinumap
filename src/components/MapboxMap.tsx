@@ -2,8 +2,9 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import MapboxLanguage from '@mapbox/mapbox-gl-language';
 import type { FeatureCollection, Point } from 'geojson';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { MapPinData, MapPinKind } from '../types/models';
+
 import './MapboxMap.css';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -35,6 +36,44 @@ const PIN_ICON: Record<MapPinKind, string> = {
   'volunteer-available': '🐾',
   volunteer: '🐾',
 };
+
+function dispersePins<T extends MapPinData>(pins: T[]): T[] {
+  const coordGroups = new Map<string, T[]>();
+
+  pins.forEach((pin) => {
+    const key = `${pin.latitude.toFixed(6)},${pin.longitude.toFixed(6)}`;
+    if (!coordGroups.has(key)) {
+      coordGroups.set(key, []);
+    }
+    coordGroups.get(key)!.push(pin);
+  });
+
+  const dispersedPins: T[] = [];
+
+  coordGroups.forEach((group) => {
+    if (group.length === 1) {
+      dispersedPins.push(group[0]);
+    } else {
+      // 0.0002度は緯度方向で約20メートル相当の距離
+      const radius = 0.0002;
+      group.forEach((pin, index) => {
+        const angle = (index * 2 * Math.PI) / group.length;
+        const dispersedLatitude = pin.latitude + radius * Math.sin(angle);
+        const cosLat = Math.cos((pin.latitude * Math.PI) / 180);
+        const dispersedLongitude = pin.longitude + (radius * Math.cos(angle)) / (cosLat || 1);
+
+        dispersedPins.push({
+          ...pin,
+          latitude: dispersedLatitude,
+          longitude: dispersedLongitude,
+        });
+      });
+    }
+  });
+
+  return dispersedPins;
+}
+
 
 type EntityKind = 'organization' | 'volunteer';
 
@@ -226,9 +265,28 @@ interface MapboxMapProps {
   onSelectPin: (selection: MapPinSelection) => void;
   // 登録ユーザーの場合、自分の登録所在地を初期表示の中心にする(未登録・未解決の間はnull)
   homeLocation: { latitude: number; longitude: number } | null;
+  onLongPress?: (latitude: number, longitude: number) => void;
 }
 
-export function MapboxMap({ orgPins, volunteerPins, onSelectPin, homeLocation }: MapboxMapProps) {
+export function MapboxMap({ orgPins, volunteerPins, onSelectPin, homeLocation, onLongPress }: MapboxMapProps) {
+  const { dispersedOrgPins, dispersedVolunteerPins } = useMemo(() => {
+    const combined = [
+      ...orgPins.map((p) => ({ ...p, _sourceKind: 'org' as const })),
+      ...volunteerPins.map((p) => ({ ...p, _sourceKind: 'volunteer' as const })),
+    ];
+    const dispersed = dispersePins(combined);
+    return {
+      dispersedOrgPins: dispersed
+        .filter((p) => p._sourceKind === 'org')
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        .map(({ _sourceKind, ...p }) => p),
+      dispersedVolunteerPins: dispersed
+        .filter((p) => p._sourceKind === 'volunteer')
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        .map(({ _sourceKind, ...p }) => p),
+    };
+  }, [orgPins, volunteerPins]);
+
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
@@ -237,14 +295,17 @@ export function MapboxMap({ orgPins, volunteerPins, onSelectPin, homeLocation }:
   const appliedHomeLocationRef = useRef<string | null>(null);
 
   const onSelectPinRef = useRef(onSelectPin);
-  const orgPinsRef = useRef(orgPins);
-  const volunteerPinsRef = useRef(volunteerPins);
+  const onLongPressRef = useRef(onLongPress);
+  const orgPinsRef = useRef(dispersedOrgPins);
+  const volunteerPinsRef = useRef(dispersedVolunteerPins);
 
   useEffect(() => {
     onSelectPinRef.current = onSelectPin;
-    orgPinsRef.current = orgPins;
-    volunteerPinsRef.current = volunteerPins;
+    onLongPressRef.current = onLongPress;
+    orgPinsRef.current = dispersedOrgPins;
+    volunteerPinsRef.current = dispersedVolunteerPins;
   });
+
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -343,6 +404,12 @@ export function MapboxMap({ orgPins, volunteerPins, onSelectPin, homeLocation }:
     map.on('move', renderPins);
     map.on('moveend', renderPins);
 
+    map.on('contextmenu', (e) => {
+      if (onLongPressRef.current) {
+        onLongPressRef.current(e.lngLat.lat, e.lngLat.lng);
+      }
+    });
+
     mapRef.current = map;
 
     return () => {
@@ -360,11 +427,12 @@ export function MapboxMap({ orgPins, volunteerPins, onSelectPin, homeLocation }:
     if (!map) return;
 
     const orgSource = map.getSource(ORG_SOURCE_ID);
-    if (orgSource?.type === 'geojson') orgSource.setData(toFeatureCollection(orgPins));
+    if (orgSource?.type === 'geojson') orgSource.setData(toFeatureCollection(dispersedOrgPins));
 
     const volunteerSource = map.getSource(VOLUNTEER_SOURCE_ID);
-    if (volunteerSource?.type === 'geojson') volunteerSource.setData(toFeatureCollection(volunteerPins));
-  }, [orgPins, volunteerPins]);
+    if (volunteerSource?.type === 'geojson') volunteerSource.setData(toFeatureCollection(dispersedVolunteerPins));
+  }, [dispersedOrgPins, dispersedVolunteerPins]);
+
 
   // マウント時点では自分の所在地が未解決(認証・DB取得待ち)だった場合に、
   // 判明した時点で改めてそこを中心とした表示に切り替える

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { dataClient } from '../lib/dataClient';
 
 // 団体ダッシュボードへの導線(ヘッダーのボタン)にバッジ表示するための、
-// 承認待ちの所属申請件数。organizationIdが無い(団体アカウントでない)場合は常に0。
+// 承認待ちのボランティア登録件数。organizationIdが無い(団体アカウントでない)場合は常に0。
 export function usePendingAffiliationCount(organizationId: string | null | undefined): [number, () => void] {
   const [count, setCount] = useState(0);
 

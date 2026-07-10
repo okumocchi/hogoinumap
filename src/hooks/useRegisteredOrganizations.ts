@@ -6,7 +6,7 @@ import type { Organization } from '../types/models';
 // 地図はゲスト(未ログイン)でも閲覧できる必要があるが、Organizationのallow.authenticated()は
 // userPool認証のみを対象としているため、ログイン中ユーザーがidentityPool(IAM)経由で
 // 呼び出すとUnauthorizedになる。ログイン状態を見てauthModeを切り替える。
-export function useRegisteredOrganizations(): Organization[] {
+export function useRegisteredOrganizations(trigger = 0): Organization[] {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
 
   useEffect(() => {
@@ -42,7 +42,7 @@ export function useRegisteredOrganizations(): Organization[] {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [trigger]);
 
   return organizations;
 }
