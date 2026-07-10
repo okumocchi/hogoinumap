@@ -1,6 +1,5 @@
 import { getCurrentUser, signOut } from 'aws-amplify/auth';
 import { type ReactNode, useState } from 'react';
-import type { BrowseView } from './components/AppHeader';
 import { ChatWindow } from './components/ChatWindow';
 import { useCurrentUser } from './hooks/useCurrentUser';
 import { useMyOrganization } from './hooks/useMyOrganization';
@@ -9,27 +8,32 @@ import { usePendingAffiliationCount } from './hooks/usePendingAffiliationCount';
 import { type ChatParticipant, chatParticipantKey, findOrCreateChatThread } from './lib/chat';
 import { DogDetailScreen } from './screens/DogDetailScreen';
 import { DogListScreen } from './screens/DogListScreen';
+import { GalleryScreen } from './screens/GalleryScreen';
 import { LoginScreen } from './screens/LoginScreen';
 import { MapScreen } from './screens/MapScreen';
 import { OrganizationDashboardScreen } from './screens/OrganizationDashboardScreen';
 import { OrganizationDetailScreen } from './screens/OrganizationDetailScreen';
-import { OrganizationSignUpScreen } from './screens/OrganizationSignUpScreen';
 import { SignUpChoiceScreen } from './screens/SignUpChoiceScreen';
 import { VolunteerDashboardScreen } from './screens/VolunteerDashboardScreen';
 import { VolunteerDetailScreen } from './screens/VolunteerDetailScreen';
 import { VolunteerSignUpScreen } from './screens/VolunteerSignUpScreen';
+import { OrganizationSignUpScreen } from './screens/OrganizationSignUpScreen';
+
+type FromScreen = 'map' | 'dog-list' | 'gallery';
 
 type Route =
-  | { screen: 'browse'; view: BrowseView }
-  | { screen: 'dog-detail'; dogId: string; from: BrowseView }
-  | { screen: 'organization-detail'; organizationId: string; from: BrowseView }
-  | { screen: 'volunteer-detail'; volunteerId: string; from: BrowseView }
-  | { screen: 'login'; from: BrowseView }
-  | { screen: 'signup-choice'; from: BrowseView }
-  | { screen: 'org-signup'; from: BrowseView }
-  | { screen: 'volunteer-signup'; from: BrowseView }
-  | { screen: 'org-dashboard'; from: BrowseView }
-  | { screen: 'volunteer-dashboard'; from: BrowseView };
+  | { screen: 'map' }
+  | { screen: 'dog-list' }
+  | { screen: 'gallery' }
+  | { screen: 'dog-detail'; dogId: string; from: FromScreen }
+  | { screen: 'organization-detail'; organizationId: string; from: FromScreen }
+  | { screen: 'volunteer-detail'; volunteerId: string; from: FromScreen }
+  | { screen: 'login'; from: FromScreen }
+  | { screen: 'signup-choice'; from: FromScreen }
+  | { screen: 'org-signup'; from: FromScreen }
+  | { screen: 'volunteer-signup'; from: FromScreen }
+  | { screen: 'org-dashboard'; from: FromScreen }
+  | { screen: 'volunteer-dashboard'; from: FromScreen };
 
 interface ActiveChat {
   threadId: string;
@@ -40,7 +44,7 @@ interface ActiveChat {
 }
 
 function App() {
-  const [route, setRoute] = useState<Route>({ screen: 'browse', view: 'map' });
+  const [route, setRoute] = useState<Route>({ screen: 'map' });
   const currentUserEmail = useCurrentUser();
   const [myOrganization, refetchMyOrganization] = useMyOrganization();
   const [myVolunteer, refetchMyVolunteer] = useMyVolunteer();
@@ -89,16 +93,14 @@ function App() {
     screen = (
       <DogDetailScreen
         dogId={route.dogId}
-        onBack={() => setRoute({ screen: 'browse', view: route.from })}
-        backLabel={route.from === 'list' ? '一覧に戻る' : '地図に戻る'}
+        onBack={() => setRoute({ screen: route.from })}
       />
     );
   } else if (route.screen === 'organization-detail') {
     screen = (
       <OrganizationDetailScreen
         organizationId={route.organizationId}
-        onBack={() => setRoute({ screen: 'browse', view: route.from })}
-        backLabel={route.from === 'list' ? '一覧に戻る' : '地図に戻る'}
+        onBack={() => setRoute({ screen: route.from })}
         onSelectDog={(dogId) => setRoute({ screen: 'dog-detail', dogId, from: route.from })}
         viewerParticipant={viewerParticipant}
         onStartChat={handleStartChat}
@@ -108,8 +110,7 @@ function App() {
     screen = (
       <VolunteerDetailScreen
         volunteerId={route.volunteerId}
-        onBack={() => setRoute({ screen: 'browse', view: route.from })}
-        backLabel={route.from === 'list' ? '一覧に戻る' : '地図に戻る'}
+        onBack={() => setRoute({ screen: route.from })}
         onSelectDog={(dogId) => setRoute({ screen: 'dog-detail', dogId, from: route.from })}
         viewerParticipant={viewerParticipant}
         onStartChat={handleStartChat}
@@ -118,14 +119,15 @@ function App() {
   } else if (route.screen === 'login') {
     screen = (
       <LoginScreen
-        onBack={() => setRoute({ screen: 'browse', view: route.from })}
-        onComplete={() => setRoute({ screen: 'browse', view: route.from })}
+        onBack={() => setRoute({ screen: route.from })}
+        onComplete={() => setRoute({ screen: route.from })}
+        onSignUp={() => setRoute({ screen: 'signup-choice', from: route.from })}
       />
     );
   } else if (route.screen === 'signup-choice') {
     screen = (
       <SignUpChoiceScreen
-        onBack={() => setRoute({ screen: 'browse', view: route.from })}
+        onBack={() => setRoute({ screen: route.from })}
         onSelectOrganization={() => setRoute({ screen: 'org-signup', from: route.from })}
         onSelectVolunteer={() => setRoute({ screen: 'volunteer-signup', from: route.from })}
       />
@@ -133,20 +135,20 @@ function App() {
   } else if (route.screen === 'org-signup') {
     screen = (
       <OrganizationSignUpScreen
-        onBack={() => setRoute({ screen: 'browse', view: route.from })}
+        onBack={() => setRoute({ screen: route.from })}
         onComplete={() => {
           refetchMyOrganization();
-          setRoute({ screen: 'browse', view: route.from });
+          setRoute({ screen: route.from });
         }}
       />
     );
   } else if (route.screen === 'volunteer-signup') {
     screen = (
       <VolunteerSignUpScreen
-        onBack={() => setRoute({ screen: 'browse', view: route.from })}
+        onBack={() => setRoute({ screen: route.from })}
         onComplete={() => {
           refetchMyVolunteer();
-          setRoute({ screen: 'browse', view: route.from });
+          setRoute({ screen: route.from });
         }}
       />
     );
@@ -156,7 +158,7 @@ function App() {
         organization={myOrganization}
         onBack={() => {
           refetchPendingAffiliationCount();
-          setRoute({ screen: 'browse', view: route.from });
+          setRoute({ screen: route.from });
         }}
         onUpdated={refetchMyOrganization}
       />
@@ -165,62 +167,59 @@ function App() {
     screen = myVolunteer ? (
       <VolunteerDashboardScreen
         volunteer={myVolunteer}
-        onBack={() => setRoute({ screen: 'browse', view: route.from })}
+        onBack={() => setRoute({ screen: route.from })}
         onUpdated={refetchMyVolunteer}
         onSelectDog={(dogId) => setRoute({ screen: 'dog-detail', dogId, from: route.from })}
       />
     ) : null;
+  } else if (route.screen === 'dog-list') {
+    screen = (
+      <DogListScreen
+        onSelectDog={(dogId) => setRoute({ screen: 'dog-detail', dogId, from: 'dog-list' })}
+        onBack={() => setRoute({ screen: 'map' })}
+      />
+    );
+  } else if (route.screen === 'gallery') {
+    screen = (
+      <GalleryScreen
+        onSelectDog={(dogId) => setRoute({ screen: 'dog-detail', dogId, from: 'gallery' })}
+        onBack={() => setRoute({ screen: 'map' })}
+      />
+    );
   } else {
-    const onSelectDog = (dogId: string) => setRoute({ screen: 'dog-detail', dogId, from: route.view });
+    // Map screen
     const onSelectOrganization = (organizationId: string) =>
-      setRoute({ screen: 'organization-detail', organizationId, from: route.view });
+      setRoute({ screen: 'organization-detail', organizationId, from: 'map' });
     const onSelectVolunteer = (volunteerId: string) =>
-      setRoute({ screen: 'volunteer-detail', volunteerId, from: route.view });
-    const onChangeView = (view: BrowseView) => setRoute({ screen: 'browse', view });
-    const onSignUp = () => setRoute({ screen: 'signup-choice', from: route.view });
-    const onLogin = () => setRoute({ screen: 'login', from: route.view });
+      setRoute({ screen: 'volunteer-detail', volunteerId, from: 'map' });
+    const onLogin = () => setRoute({ screen: 'login', from: 'map' });
     const onLogout = () => {
       void signOut();
     };
     const onOpenDashboard = () => {
       if (myOrganization) {
-        setRoute({ screen: 'org-dashboard', from: route.view });
+        setRoute({ screen: 'org-dashboard', from: 'map' });
       } else if (myVolunteer) {
-        setRoute({ screen: 'volunteer-dashboard', from: route.view });
+        setRoute({ screen: 'volunteer-dashboard', from: 'map' });
       }
     };
     const showDashboardButton = !!myOrganization || !!myVolunteer;
 
-    screen =
-      route.view === 'list' ? (
-        <DogListScreen
-          onSelectDog={onSelectDog}
-          activeView={route.view}
-          onChangeView={onChangeView}
-          onSignUp={onSignUp}
-          currentUserEmail={currentUserEmail}
-          onLogin={onLogin}
-          onLogout={onLogout}
-          showDashboardButton={showDashboardButton}
-          onOpenDashboard={onOpenDashboard}
-          dashboardBadgeCount={pendingAffiliationCount}
-        />
-      ) : (
-        <MapScreen
-          onSelectOrganization={onSelectOrganization}
-          onSelectVolunteer={onSelectVolunteer}
-          homeLocation={homeLocation}
-          activeView={route.view}
-          onChangeView={onChangeView}
-          onSignUp={onSignUp}
-          currentUserEmail={currentUserEmail}
-          onLogin={onLogin}
-          onLogout={onLogout}
-          showDashboardButton={showDashboardButton}
-          onOpenDashboard={onOpenDashboard}
-          dashboardBadgeCount={pendingAffiliationCount}
-        />
-      );
+    screen = (
+      <MapScreen
+        onSelectOrganization={onSelectOrganization}
+        onSelectVolunteer={onSelectVolunteer}
+        homeLocation={homeLocation}
+        onOpenList={() => setRoute({ screen: 'dog-list' })}
+        onOpenGallery={() => setRoute({ screen: 'gallery' })}
+        currentUserEmail={currentUserEmail}
+        onLogin={onLogin}
+        onLogout={onLogout}
+        showDashboardButton={showDashboardButton}
+        onOpenDashboard={onOpenDashboard}
+        dashboardBadgeCount={pendingAffiliationCount}
+      />
+    );
   }
 
   return (

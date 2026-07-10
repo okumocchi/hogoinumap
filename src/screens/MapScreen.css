@@ -160,9 +160,16 @@
 }
 
 .map-screen__sheet-thumb--slot {
-  /* 空きスロット画像は自身に枠が描かれているため、コンテナ側の背景・枠は消す */
   background: transparent;
   border: none;
+  overflow: visible;
+}
+
+.map-screen__sheet-thumb--slot .slot-placeholder-icon {
+  width: 66px;
+  height: 66px;
+  max-width: none;
+  display: block;
 }
 
 .map-screen__sheet-close {

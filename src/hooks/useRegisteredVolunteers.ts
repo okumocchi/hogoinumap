@@ -49,6 +49,7 @@ export function useRegisteredVolunteers(): Volunteer[] {
           wishlistUrl: vol.wishlistUrl ?? undefined,
           profileIntroduction: vol.profileIntroduction ?? undefined,
           hasAvailableSlot: volunteerIdsWithAvailableSlot.has(vol.id),
+          ownerSub: vol.ownerSub ?? undefined,
         }));
 
       setVolunteers(withCoordinates);

@@ -8,6 +8,7 @@ import { dataClient } from '../lib/dataClient';
 import type { DogGender, DogSize, DogStatus } from '../types/models';
 import { calculateAgeLabel, effectiveDogStatusLabel, genderLabel } from '../utils/dog';
 import { PREFECTURES } from '../utils/prefectures';
+import { SecondaryHeader } from '../components/SecondaryHeader';
 import './VolunteerDashboardScreen.css';
 
 interface VolunteerDashboardScreenProps {
@@ -95,6 +96,7 @@ interface SlotOccupant {
   birthDateEstimated: boolean;
   status: DogStatus;
   custodianOwnerSub?: string;
+  protectedDate: string;
 }
 
 interface SlotFormState {
@@ -119,6 +121,7 @@ interface CustodyDogInfo {
   id: string;
   name: string;
   status: CustodyDogStatus;
+  protectedDate: string;
 }
 
 function today(): string {
@@ -193,9 +196,10 @@ export function VolunteerDashboardScreen({ volunteer, onBack, onUpdated, onSelec
       { custodianOwnerSub: myOwnerSub },
       { authMode: 'userPool' },
     );
-    return result.data
+    const mapped = result.data
       .filter((dog): dog is typeof dog & { status: CustodyDogStatus } => dog.status === 'PROTECTED' || dog.status === 'IN_TRANSIT' || dog.status === 'SUSPENDED')
-      .map((dog) => ({ id: dog.id, name: dog.name ?? '', status: dog.status }));
+      .map((dog) => ({ id: dog.id, name: dog.name ?? '', status: dog.status, protectedDate: dog.protectedDate ?? '' }));
+    return mapped.sort((a, b) => b.protectedDate.localeCompare(a.protectedDate));
   }
 
   useEffect(() => {
@@ -415,6 +419,7 @@ export function VolunteerDashboardScreen({ volunteer, onBack, onUpdated, onSelec
           birthDateEstimated: dog?.birthDateEstimated ?? false,
           status: (dog?.status ?? 'PROTECTED') as DogStatus,
           custodianOwnerSub: dog?.custodianOwnerSub ?? undefined,
+          protectedDate: dog?.protectedDate ?? '',
         };
         return [match.slotId, occupant] as const;
       }),
@@ -561,19 +566,12 @@ export function VolunteerDashboardScreen({ volunteer, onBack, onUpdated, onSelec
 
   return (
     <div className="volunteer-dashboard">
-      <header className="volunteer-dashboard__topbar">
-        <button
-          type="button"
-          className="volunteer-dashboard__back"
-          onClick={mode === 'edit' ? () => setMode('view') : onBack}
-        >
-          &lt;
-        </button>
-      </header>
+      <SecondaryHeader
+        title={mode === 'edit' ? 'プロフィールを編集' : 'ボランティアダッシュボード'}
+        onBack={mode === 'edit' ? () => setMode('view') : onBack}
+      />
 
       <div className="volunteer-dashboard__body">
-        <h1>ボランティアダッシュボード</h1>
-
         {mode === 'view' && (
           <>
             <div className="volunteer-dashboard__heading-row">
@@ -662,64 +660,75 @@ export function VolunteerDashboardScreen({ volunteer, onBack, onUpdated, onSelec
                   {slots.length === 0 && <p className="volunteer-dashboard__empty">登録されているスロットはありません。</p>}
                   {slots.length > 0 && (
                     <ul className="volunteer-dashboard__slot-list">
-                      {slots.map((slot) => {
-                        const occupant = slotOccupants[slot.id];
-                        return (
-                          <li key={slot.id}>
-                            <button
-                              type="button"
-                              className="volunteer-dashboard__slot-card"
-                              onClick={() => (occupant ? onSelectDog(occupant.dogId) : openEditSlotForm(slot))}
-                            >
-                              <div className="volunteer-dashboard__slot-thumb">
-                                {occupant && occupantDogThumbnails[occupant.dogId] ? (
-                                  <img src={occupantDogThumbnails[occupant.dogId]} alt="" />
-                                ) : (
-                                  <SlotPlaceholderIcon />
-                                )}
-                              </div>
-                              <div className="volunteer-dashboard__slot-info">
-                                <h3 className="volunteer-dashboard__slot-title">{occupant ? occupant.name : '未使用'}</h3>
-                                {occupant ? (
-                                  <dl className="volunteer-dashboard__slot-fact-list">
-                                    <div>
-                                      <dt>性別</dt>
-                                      <dd>{genderLabel[occupant.gender]}</dd>
-                                    </div>
-                                    <div>
-                                      <dt>年齢</dt>
-                                      <dd>{calculateAgeLabel(occupant.birthDate, occupant.birthDateEstimated)}</dd>
-                                    </div>
-                                    <div>
-                                      <dt>状態</dt>
-                                      <dd>{effectiveDogStatusLabel(occupant)}</dd>
-                                    </div>
-                                  </dl>
-                                ) : (
-                                  <dl className="volunteer-dashboard__slot-fact-list">
-                                    <div>
-                                      <dt>性別</dt>
-                                      <dd>{slot.conditionGenders.map((g) => fosteringSlotGenderLabel[g]).join('・')}</dd>
-                                    </div>
-                                    <div>
-                                      <dt>年齢</dt>
-                                      <dd>{slot.conditionAges.map((a) => fosteringSlotAgeLabel[a]).join('・')}</dd>
-                                    </div>
-                                    <div>
-                                      <dt>大きさ</dt>
-                                      <dd>{slot.conditionSizes.map((s) => fosteringSlotSizeLabel[s]).join('・')}</dd>
-                                    </div>
-                                    <div>
-                                      <dt>期間</dt>
-                                      <dd>{fosteringSlotPeriodLabel[slot.conditionPeriod]}</dd>
-                                    </div>
-                                  </dl>
-                                )}
-                              </div>
-                            </button>
-                          </li>
-                        );
-                      })}
+                      {[...slots]
+                        .sort((a, b) => {
+                          const occA = slotOccupants[a.id];
+                          const occB = slotOccupants[b.id];
+                          if (occA && occB) {
+                            return occB.protectedDate.localeCompare(occA.protectedDate);
+                          }
+                          if (occA) return -1;
+                          if (occB) return 1;
+                          return 0;
+                        })
+                        .map((slot) => {
+                          const occupant = slotOccupants[slot.id];
+                          return (
+                            <li key={slot.id}>
+                              <button
+                                type="button"
+                                className="volunteer-dashboard__slot-card"
+                                onClick={() => (occupant ? onSelectDog(occupant.dogId) : openEditSlotForm(slot))}
+                              >
+                                <div className="volunteer-dashboard__slot-thumb">
+                                  {occupant && occupantDogThumbnails[occupant.dogId] ? (
+                                    <img src={occupantDogThumbnails[occupant.dogId]} alt="" />
+                                  ) : (
+                                    <SlotPlaceholderIcon />
+                                  )}
+                                </div>
+                                <div className="volunteer-dashboard__slot-info">
+                                  <h3 className="volunteer-dashboard__slot-title">{occupant ? occupant.name : '未使用'}</h3>
+                                  {occupant ? (
+                                    <dl className="volunteer-dashboard__slot-fact-list">
+                                      <div>
+                                        <dt>性別</dt>
+                                        <dd>{genderLabel[occupant.gender]}</dd>
+                                      </div>
+                                      <div>
+                                        <dt>年齢</dt>
+                                        <dd>{calculateAgeLabel(occupant.birthDate, occupant.birthDateEstimated)}</dd>
+                                      </div>
+                                      <div>
+                                        <dt>状態</dt>
+                                        <dd>{effectiveDogStatusLabel(occupant)}</dd>
+                                      </div>
+                                    </dl>
+                                  ) : (
+                                    <dl className="volunteer-dashboard__slot-fact-list">
+                                      <div>
+                                        <dt>性別</dt>
+                                        <dd>{slot.conditionGenders.map((g) => fosteringSlotGenderLabel[g]).join('・')}</dd>
+                                      </div>
+                                      <div>
+                                        <dt>年齢</dt>
+                                        <dd>{slot.conditionAges.map((a) => fosteringSlotAgeLabel[a]).join('・')}</dd>
+                                      </div>
+                                      <div>
+                                        <dt>大きさ</dt>
+                                        <dd>{slot.conditionSizes.map((s) => fosteringSlotSizeLabel[s]).join('・')}</dd>
+                                      </div>
+                                      <div>
+                                        <dt>期間</dt>
+                                        <dd>{fosteringSlotPeriodLabel[slot.conditionPeriod]}</dd>
+                                      </div>
+                                    </dl>
+                                  )}
+                                </div>
+                              </button>
+                            </li>
+                          );
+                        })}
                     </ul>
                   )}
                 </>

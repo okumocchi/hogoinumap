@@ -346,11 +346,18 @@
   }
 }
 
-.media-card__like {
+.media-card__actions-container {
   position: absolute;
   bottom: 45px;
   right: 8px;
   z-index: 11;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.media-card__like {
   border: 1px solid rgba(255, 255, 255, 0.35);
   background: rgba(0, 0, 0, 0.6);
   color: #fff;
@@ -369,6 +376,27 @@
 .media-card__like.is-liked {
   border-color: rgba(229, 62, 62, 0.45);
   background: rgba(229, 62, 62, 0.8);
+}
+
+.media-card__gift-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+  cursor: pointer;
+  text-decoration: none;
+  backdrop-filter: blur(4px);
+  transition: background 0.2s, transform 0.1s;
+}
+
+.media-card__gift-link:hover {
+  background: rgba(0, 0, 0, 0.85);
+  transform: scale(1.1);
 }
 
 .org-card {

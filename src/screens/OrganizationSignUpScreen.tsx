@@ -4,6 +4,7 @@ import { dataClient } from '../lib/dataClient';
 import { translateAuthError } from '../utils/authErrors';
 import { geocodeAddress } from '../utils/geocode';
 import { PREFECTURES } from '../utils/prefectures';
+import { SecondaryHeader } from '../components/SecondaryHeader';
 import './OrganizationSignUpScreen.css';
 
 interface OrganizationSignUpScreenProps {
@@ -208,13 +209,8 @@ export function OrganizationSignUpScreen({ onBack, onComplete }: OrganizationSig
 
   return (
     <div className="org-signup">
-      <header className="org-signup__topbar">
-        <button type="button" className="org-signup__back" onClick={onBack}>
-          &lt;
-        </button>
-      </header>
+      <SecondaryHeader title="保護団体登録" onBack={onBack} />
       <div className="org-signup__body">
-        <h1>保護団体として登録</h1>
         <p className="org-signup__lead">保護犬の情報登録や預かりボランティアの募集に、団体アカウントが必要です。</p>
         <form className="org-signup__form" onSubmit={handleSubmit}>
           <h2>アカウント情報</h2>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AppHeader, type BrowseView } from '../components/AppHeader';
+import { AppHeader } from '../components/AppHeader';
 import { MapboxMap, type MapPinSelection } from '../components/MapboxMap';
 import { SlotPlaceholderIcon } from '../components/SlotPlaceholderIcon';
 import { useDogThumbnails } from '../hooks/useDogThumbnails';
@@ -17,9 +17,8 @@ interface MapScreenProps {
   onSelectOrganization: (organizationId: string) => void;
   onSelectVolunteer: (volunteerId: string) => void;
   homeLocation: { latitude: number; longitude: number } | null;
-  activeView: BrowseView;
-  onChangeView: (view: BrowseView) => void;
-  onSignUp: () => void;
+  onOpenList: () => void;
+  onOpenGallery: () => void;
   currentUserEmail: string | null | undefined;
   onLogin: () => void;
   onLogout: () => void;
@@ -32,9 +31,8 @@ export function MapScreen({
   onSelectOrganization,
   onSelectVolunteer,
   homeLocation,
-  activeView,
-  onChangeView,
-  onSignUp,
+  onOpenList,
+  onOpenGallery,
   currentUserEmail,
   onLogin,
   onLogout,
@@ -113,7 +111,10 @@ export function MapScreen({
   const selectedOrgProtectedDogIds = useMemo(
     () =>
       selectedOrganization
-        ? allDogs.filter((d) => d.organizationId === selectedOrganization.id && d.status === 'PROTECTED').map((d) => d.id)
+        ? allDogs
+            .filter((d) => d.organizationId === selectedOrganization.id && d.status === 'PROTECTED')
+            .sort((a, b) => b.protectedDate.localeCompare(a.protectedDate))
+            .map((d) => d.id)
         : [],
     [selectedOrganization, allDogs],
   );
@@ -121,6 +122,20 @@ export function MapScreen({
 
   const volunteerFosterSummary = useVolunteerFosterSummary(selectedVolunteer?.id);
   const volunteerDogThumbnails = useDogThumbnails(volunteerFosterSummary.fosteredDogIds);
+
+  const sortedVolunteerFosteredDogIds = useMemo(() => {
+    const ids = volunteerFosterSummary.fosteredDogIds;
+    return [...ids].sort((idA, idB) => {
+      const dogA = allDogs.find((d) => d.id === idA);
+      const dogB = allDogs.find((d) => d.id === idB);
+      if (dogA && dogB) {
+        return dogB.protectedDate.localeCompare(dogA.protectedDate);
+      }
+      if (dogA) return -1;
+      if (dogB) return 1;
+      return 0;
+    });
+  }, [volunteerFosterSummary.fosteredDogIds, allDogs]);
 
   function handleSheetClick() {
     if (selectedOrganization) {
@@ -133,9 +148,8 @@ export function MapScreen({
   return (
     <div className="map-screen">
       <AppHeader
-        activeView={activeView}
-        onChangeView={onChangeView}
-        onSignUp={onSignUp}
+        onOpenList={onOpenList}
+        onOpenGallery={onOpenGallery}
         currentUserEmail={currentUserEmail}
         onLogin={onLogin}
         onLogout={onLogout}
@@ -251,7 +265,7 @@ export function MapScreen({
                 {selectedVolunteer.prefecture} {selectedVolunteer.city}
               </p>
               <div className="map-screen__sheet-thumbs">
-                {volunteerFosterSummary.fosteredDogIds.map((dogId) => (
+                {sortedVolunteerFosteredDogIds.map((dogId) => (
                   <span key={dogId} className="map-screen__sheet-thumb">
                     {volunteerDogThumbnails[dogId] ? <img src={volunteerDogThumbnails[dogId]} alt="" /> : null}
                   </span>

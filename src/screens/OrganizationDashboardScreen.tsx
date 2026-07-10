@@ -9,6 +9,7 @@ import { calculateAgeLabel, effectiveDogStatusLabel, genderLabel, isDogOpenForFo
 import { geocodeAddress } from '../utils/geocode';
 import { PREFECTURES } from '../utils/prefectures';
 import { OrganizationDogDetailScreen } from './OrganizationDogDetailScreen';
+import { SecondaryHeader } from '../components/SecondaryHeader';
 import './OrganizationDashboardScreen.css';
 
 interface OrganizationDashboardScreenProps {
@@ -175,7 +176,7 @@ export function OrganizationDashboardScreen({ organization, onBack, onUpdated }:
       { organizationId: organization.id },
       { authMode: 'userPool' },
     );
-    return result.data.map((dog) => ({
+    const mapped = result.data.map((dog) => ({
       id: dog.id,
       organizationId: dog.organizationId,
       name: dog.name ?? '',
@@ -196,6 +197,7 @@ export function OrganizationDashboardScreen({ organization, onBack, onUpdated }:
       prefecture: dog.prefecture,
       city: dog.city,
     }));
+    return mapped.sort((a, b) => b.protectedDate.localeCompare(a.protectedDate));
   }
 
   useEffect(() => {
@@ -423,15 +425,10 @@ export function OrganizationDashboardScreen({ organization, onBack, onUpdated }:
 
   return (
     <div className="org-dashboard">
-      <header className="org-dashboard__topbar">
-        <button
-          type="button"
-          className="org-dashboard__back"
-          onClick={mode.screen === 'edit-dog' ? () => setMode({ screen: 'dog-detail', dogId: mode.dogId }) : onBack}
-        >
-          &lt;
-        </button>
-      </header>
+      <SecondaryHeader
+        title={mode.screen === 'edit-dog' ? '保護犬情報を編集' : '保護団体ダッシュボード'}
+        onBack={mode.screen === 'edit-dog' ? () => setMode({ screen: 'dog-detail', dogId: mode.dogId }) : onBack}
+      />
 
       <div className="org-dashboard__body">
         {editingOrgInfo ? (
@@ -526,7 +523,7 @@ export function OrganizationDashboardScreen({ organization, onBack, onUpdated }:
         ) : (
           <>
             <div className="org-dashboard__heading-row">
-              <h1>{organization.name} ダッシュボード</h1>
+              <h1>{organization.name}</h1>
               {mode.screen === 'list' && (
                 <button
                   type="button"
@@ -585,7 +582,7 @@ export function OrganizationDashboardScreen({ organization, onBack, onUpdated }:
           <>
             <section className="org-dashboard__section">
               <h2>
-                所属申請
+                預かりボランティア登録申請
                 {affiliationRequests.length > 0 && (
                   <span className="org-dashboard__section-badge">{affiliationRequests.length}</span>
                 )}

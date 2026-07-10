@@ -112,3 +112,14 @@
   margin: 0;
   color: var(--text-h);
 }
+
+button.volunteer-detail__slot-card {
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.1s;
+}
+
+button.volunteer-detail__slot-card:hover {
+  border-color: var(--accent);
+}

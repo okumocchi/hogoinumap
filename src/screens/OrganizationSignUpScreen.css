@@ -1,19 +1,13 @@
 .org-signup {
-  /* このフォームだけ背景色と文字色を通常のテーマから反転させる */
-  --org-bg: var(--text-h);
-  --org-fg: var(--bg);
-
   flex: 1;
   overflow-y: auto;
   text-align: left;
-  background: var(--org-bg);
-  color: var(--org-fg);
 }
 
 .org-signup__topbar {
   position: sticky;
   top: 0;
-  background: var(--org-bg);
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
   padding: 12px 20px;
   z-index: 1;
@@ -37,14 +31,13 @@
 .org-signup__body h1 {
   margin: 0 0 8px;
   font-size: 26px;
-  color: var(--org-fg);
+  color: var(--text-h);
 }
 
 .org-signup__lead {
   margin: 0 0 24px;
   font-size: 14px;
-  color: var(--org-fg);
-  opacity: 0.8;
+  color: var(--text);
 }
 
 .org-signup__form {
@@ -56,7 +49,7 @@
 .org-signup__form h2 {
   font-size: 15px;
   margin: 8px 0 -4px;
-  color: var(--org-fg);
+  color: var(--text-h);
 }
 
 .org-signup__row {
@@ -70,7 +63,7 @@
   flex-direction: column;
   gap: 6px;
   font-size: 13px;
-  color: var(--org-fg);
+  color: var(--text);
 }
 
 .org-signup__field input,
@@ -78,14 +71,14 @@
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  background: var(--org-bg);
-  color: var(--org-fg);
+  background: var(--bg);
+  color: var(--text-h);
   font-size: 15px;
   font-family: inherit;
 }
 
 .org-signup__field small {
-  color: var(--org-fg);
+  color: var(--text);
   opacity: 0.8;
 }
 
@@ -102,7 +95,7 @@
 .org-signup__notice {
   margin: 0;
   font-size: 13px;
-  color: var(--org-fg);
+  color: var(--text);
 }
 
 .org-signup__primary-button {

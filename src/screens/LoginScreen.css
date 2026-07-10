@@ -122,3 +122,34 @@
   gap: 12px;
   padding-top: 64px;
 }
+
+.login-screen__signup-prompt {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+.login-screen__signup-text {
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.login-screen__signup-button {
+  display: block;
+  width: 100%;
+  padding: 14px 20px;
+  border-radius: 10px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.login-screen__signup-button:hover {
+  background: var(--accent-bg);
+}

@@ -1,4 +1,5 @@
 import './SignUpChoiceScreen.css';
+import { SecondaryHeader } from '../components/SecondaryHeader';
 
 interface SignUpChoiceScreenProps {
   onBack: () => void;
@@ -9,13 +10,8 @@ interface SignUpChoiceScreenProps {
 export function SignUpChoiceScreen({ onBack, onSelectOrganization, onSelectVolunteer }: SignUpChoiceScreenProps) {
   return (
     <div className="signup-choice">
-      <header className="signup-choice__topbar">
-        <button type="button" className="signup-choice__back" onClick={onBack}>
-          &lt;
-        </button>
-      </header>
+      <SecondaryHeader title="新規ユーザ登録" onBack={onBack} />
       <div className="signup-choice__body">
-        <h1>新規登録</h1>
         <p className="signup-choice__lead">登録する種別を選んでください。</p>
 
         <button type="button" className="signup-choice__card" onClick={onSelectVolunteer}>

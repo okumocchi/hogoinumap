@@ -1,0 +1,223 @@
+.gallery-screen {
+  flex: 1;
+  overflow-y: auto;
+  text-align: left;
+  height: 100vh;
+}
+
+.gallery-screen__body {
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.gallery-screen__sort-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+
+.gallery-screen__sort-tab {
+  border: 1px solid var(--border);
+  background: var(--social-bg);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.gallery-screen__sort-tab:hover {
+  background: var(--border);
+}
+
+.gallery-screen__sort-tab.is-active {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.gallery-screen__media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.gallery-screen__message {
+  font-size: 15px;
+  color: var(--text);
+  text-align: center;
+  padding: 48px 0;
+}
+
+.gallery-screen__loading-more {
+  font-size: 14px;
+  color: var(--text);
+  text-align: center;
+  padding: 16px 0;
+  opacity: 0.8;
+}
+
+/* media-card and associated styles replicated from DogDetailScreen.css for consistency */
+.media-card {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  aspect-ratio: 1 / 1;
+  background-color: var(--social-bg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.media-card__age-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 12;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 3px 7px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.media-card__media-container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.media-card__thumb {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  object-fit: cover;
+}
+
+.media-card__thumb--clickable {
+  cursor: pointer;
+}
+
+.media-card__caption-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.media-card__caption {
+  margin: 0;
+  padding: 0 10px;
+  font-size: 13px;
+  color: #fff;
+  white-space: nowrap;
+  display: inline-block;
+  animation: caption-scroll 8s linear infinite;
+}
+
+@keyframes caption-scroll {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.media-card__actions-container {
+  position: absolute;
+  bottom: 40px;
+  right: 8px;
+  z-index: 11;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.media-card__like {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.2s, transform 0.1s;
+}
+
+.media-card__like:hover {
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.media-card__like.is-liked {
+  border-color: rgba(229, 62, 62, 0.45);
+  background: rgba(229, 62, 62, 0.8);
+}
+
+.media-card__gift-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+  cursor: pointer;
+  text-decoration: none;
+  backdrop-filter: blur(4px);
+  transition: background 0.2s, transform 0.1s;
+}
+
+.media-card__gift-link:hover {
+  background: rgba(0, 0, 0, 0.85);
+  transform: scale(1.1);
+}
+
+/* Detail page links in gallery cards (top-right) */
+.media-card__detail-button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 12;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.media-card__detail-button:hover {
+  background: rgba(0, 0, 0, 0.85);
+}

@@ -4,6 +4,7 @@ import { dataClient } from '../lib/dataClient';
 import { translateAuthError } from '../utils/authErrors';
 import { geocodeAddress } from '../utils/geocode';
 import { PREFECTURES } from '../utils/prefectures';
+import { SecondaryHeader } from '../components/SecondaryHeader';
 import './VolunteerSignUpScreen.css';
 
 interface VolunteerSignUpScreenProps {
@@ -196,14 +197,9 @@ export function VolunteerSignUpScreen({ onBack, onComplete }: VolunteerSignUpScr
 
   return (
     <div className="volunteer-signup">
-      <header className="volunteer-signup__topbar">
-        <button type="button" className="volunteer-signup__back" onClick={onBack}>
-          &lt;
-        </button>
-      </header>
+      <SecondaryHeader title="預かりボランティア登録" onBack={onBack} />
       <div className="volunteer-signup__body">
-        <h1>預かりボランティアとして登録</h1>
-        <p className="volunteer-signup__lead">預かりスロットの登録や、団体への所属申請に、ボランティアアカウントが必要です。</p>
+        <p className="volunteer-signup__lead">預かりスロットの登録や、団体へのボランティア登録申請に、ボランティアアカウントが必要です。</p>
         <form className="volunteer-signup__form" onSubmit={handleSubmit}>
           <h2>アカウント情報</h2>
           <label className="volunteer-signup__field">

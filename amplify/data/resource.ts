@@ -361,8 +361,8 @@ const schema = a.schema({
       anonToken: a.string().required(), // Cookie等で発行する匿名ID(二重いいね防止)
     })
     .authorization((allow) => [
-      allow.guest().to(['create', 'read']),
-      allow.authenticated().to(['create', 'read']),
+      allow.guest().to(['create', 'read', 'delete']),
+      allow.authenticated().to(['create', 'read', 'delete']),
     ])
     .secondaryIndexes((index) => [
       index('dogMediaId').queryField('listByMedia'),

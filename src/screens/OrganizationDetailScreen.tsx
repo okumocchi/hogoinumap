@@ -8,10 +8,10 @@ import { useRegisteredOrganizations } from '../hooks/useRegisteredOrganizations'
 import { dataClient } from '../lib/dataClient';
 import type { ChatParticipant, ChatParticipantKind } from '../lib/chat';
 import type { Dog, DogGender, DogSize, Organization } from '../types/models';
+import { SecondaryHeader } from '../components/SecondaryHeader';
 import {
   calculateAgeBracket,
   calculateAgeLabel,
-  effectiveDogStatusLabel,
   genderLabel,
   isDogOpenForFosterOffers,
 } from '../utils/dog';
@@ -20,7 +20,6 @@ import './OrganizationDetailScreen.css';
 interface OrganizationDetailScreenProps {
   organizationId: string;
   onBack: () => void;
-  backLabel: string;
   onSelectDog: (dogId: string) => void;
   viewerParticipant: { kind: ChatParticipantKind; id: string } | null;
   onStartChat: (other: ChatParticipant) => Promise<void>;
@@ -42,7 +41,6 @@ type FosterFlow =
 export function OrganizationDetailScreen({
   organizationId,
   onBack,
-  backLabel,
   onSelectDog,
   viewerParticipant,
   onStartChat,
@@ -64,7 +62,9 @@ export function OrganizationDetailScreen({
   // 預け先IDの楽観的な上書き(預かりの申し出直後、再取得なしで表示に反映するため)
   const [dogOverrides, setDogOverrides] = useState<Record<string, Partial<Dog>>>({});
   const displayDogs = useMemo(
-    () => protectedDogs.map((dog) => ({ ...dog, ...dogOverrides[dog.id] })),
+    () => protectedDogs
+      .map((dog) => ({ ...dog, ...dogOverrides[dog.id] }))
+      .sort((a, b) => b.protectedDate.localeCompare(a.protectedDate)),
     [protectedDogs, dogOverrides],
   );
 
@@ -268,7 +268,7 @@ export function OrganizationDetailScreen({
       <div className="organization-detail organization-detail--not-found">
         <p>団体情報が見つかりませんでした。</p>
         <button type="button" onClick={onBack}>
-          {backLabel}
+          戻る
         </button>
       </div>
     );
@@ -276,23 +276,60 @@ export function OrganizationDetailScreen({
 
   return (
     <div className="organization-detail">
-      <header className="organization-detail__topbar">
-        <button type="button" className="organization-detail__back" onClick={onBack}>
-          &lt;
-        </button>
-      </header>
+      <SecondaryHeader title="保護団体詳細" onBack={onBack} />
 
       <div className="organization-detail__body">
-        <span className="organization-detail__label">保護団体</span>
-        <h1 className="organization-detail__name">{organization.name}</h1>
-        <p className="organization-detail__meta">
-          {organization.prefecture} {organization.city}
-        </p>
-        {organization.wishlistUrl && (
-          <a className="organization-detail__wishlist" href={organization.wishlistUrl} target="_blank" rel="noreferrer">
-            ほしいものリストを見る ↗
-          </a>
-        )}
+        {/* <span className="organization-detail__label">保護団体</span> */}
+        <div className="organization-detail__title-row">
+          <h1 className="organization-detail__name">{organization.name}</h1>
+          <div className="organization-detail__links">
+            {organization.websiteUrl && (
+              <a
+                href={organization.websiteUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="organization-detail__icon-link"
+                title="ウェブサイトを開く"
+              >
+                🏠
+              </a>
+            )}
+            {organization.wishlistUrl && (
+              <a
+                href={organization.wishlistUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="organization-detail__icon-link"
+                title="ほしいものリストを開く"
+              >
+                🎁
+              </a>
+            )}
+          </div>
+        </div>
+
+        <dl className="organization-detail__facts">
+          <div>
+            <dt>住所</dt>
+            <dd>
+              {organization.prefecture}
+              {organization.city}
+              {organization.addressLine}
+            </dd>
+          </div>
+          {organization.contactEmail && (
+            <div>
+              <dt>メールアドレス</dt>
+              <dd>{organization.contactEmail}</dd>
+            </div>
+          )}
+          {organization.contactPhone && (
+            <div>
+              <dt>電話番号</dt>
+              <dd>{organization.contactPhone}</dd>
+            </div>
+          )}
+        </dl>
         {canChatWithOrg && (
           <div className="organization-detail__chat-action">
             <button
@@ -333,7 +370,7 @@ export function OrganizationDetailScreen({
                 <div className="dog-summary-card__heading">
                   <span className="dog-summary-card__name">{dog.name}</span>
                   <span className="dog-summary-card__badges">
-                    <Badge tone="neutral">{effectiveDogStatusLabel(dog)}</Badge>
+                    {/* <Badge tone="neutral">{effectiveDogStatusLabel(dog)}</Badge> */}
                     {dog.seekingAdopter && <Badge tone="success">里親募集中</Badge>}
                     {isDogOpenForFosterOffers(dog) && (
                       <Badge

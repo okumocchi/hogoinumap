@@ -1,16 +1,18 @@
 import { confirmResetPassword, confirmSignUp, resendSignUpCode, resetPassword, signIn } from 'aws-amplify/auth';
 import { type FormEvent, useState } from 'react';
 import { translateAuthError } from '../utils/authErrors';
+import { SecondaryHeader } from '../components/SecondaryHeader';
 import './LoginScreen.css';
 
 interface LoginScreenProps {
   onBack: () => void;
   onComplete: () => void;
+  onSignUp: () => void;
 }
 
 type Step = 'login' | 'confirm-signup' | 'reset-request' | 'reset-confirm' | 'reset-done';
 
-export function LoginScreen({ onBack, onComplete }: LoginScreenProps) {
+export function LoginScreen({ onBack, onComplete, onSignUp }: LoginScreenProps) {
   const [step, setStep] = useState<Step>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -227,13 +229,8 @@ export function LoginScreen({ onBack, onComplete }: LoginScreenProps) {
 
   return (
     <div className="login-screen">
-      <header className="login-screen__topbar">
-        <button type="button" className="login-screen__back" onClick={onBack}>
-          &lt;
-        </button>
-      </header>
+      <SecondaryHeader title="ログイン" onBack={onBack} />
       <div className="login-screen__body">
-        <h1>ログイン</h1>
         <p className="login-screen__lead">保護団体・預かりボランティア共通のログインです。</p>
         <form className="login-screen__form" onSubmit={handleLogin}>
           <label className="login-screen__field">
@@ -255,6 +252,13 @@ export function LoginScreen({ onBack, onComplete }: LoginScreenProps) {
             パスワードをお忘れですか？
           </button>
         </form>
+
+        <div className="login-screen__signup-prompt">
+          <p className="login-screen__signup-text">ユーザ登録がまだの場合こちらからお願いします</p>
+          <button type="button" className="login-screen__signup-button" onClick={onSignUp}>
+            新規ユーザ登録
+          </button>
+        </div>
       </div>
     </div>
   );

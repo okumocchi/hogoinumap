@@ -11,6 +11,7 @@ export interface Organization {
   name: string;
   prefecture: string;
   city: string;
+  addressLine?: string;
   latitude: number;
   longitude: number;
   contactEmail?: string;
@@ -30,6 +31,7 @@ export interface Volunteer {
   profileIntroduction?: string;
   // 受入可能なスロットが1件でもあるかどうか(地図のピン色分けに使用)
   hasAvailableSlot: boolean;
+  ownerSub?: string;
 }
 
 export interface Dog {

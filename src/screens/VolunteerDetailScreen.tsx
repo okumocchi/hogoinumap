@@ -6,7 +6,8 @@ import { useRegisteredVolunteers } from '../hooks/useRegisteredVolunteers';
 import { dataClient } from '../lib/dataClient';
 import type { ChatParticipant, ChatParticipantKind } from '../lib/chat';
 import type { Volunteer } from '../types/models';
-import { calculateAgeLabel, effectiveDogStatusLabel, genderLabel } from '../utils/dog';
+import { calculateAgeLabel, genderLabel } from '../utils/dog';
+import { SecondaryHeader } from '../components/SecondaryHeader';
 import './OrganizationDetailScreen.css';
 import './VolunteerDetailScreen.css';
 
@@ -50,12 +51,12 @@ interface SlotOccupant {
   birthDateEstimated: boolean;
   status: any;
   custodianOwnerSub?: string;
+  protectedDate: string;
 }
 
 interface VolunteerDetailScreenProps {
   volunteerId: string;
   onBack: () => void;
-  backLabel: string;
   onSelectDog: (dogId: string) => void;
   viewerParticipant: { kind: ChatParticipantKind; id: string } | null;
   onStartChat: (other: ChatParticipant) => Promise<void>;
@@ -64,7 +65,6 @@ interface VolunteerDetailScreenProps {
 export function VolunteerDetailScreen({
   volunteerId,
   onBack,
-  backLabel,
   onSelectDog,
   viewerParticipant,
   onStartChat,
@@ -125,6 +125,7 @@ export function VolunteerDetailScreen({
               birthDateEstimated: dog?.birthDateEstimated ?? false,
               status: dog?.status ?? 'PROTECTED',
               custodianOwnerSub: dog?.custodianOwnerSub ?? undefined,
+              protectedDate: dog?.protectedDate ?? '',
             };
             return [match.slotId, occupant] as const;
           })
@@ -177,7 +178,7 @@ export function VolunteerDetailScreen({
       <div className="organization-detail organization-detail--not-found">
         <p>ボランティア情報が見つかりませんでした。</p>
         <button type="button" onClick={onBack}>
-          {backLabel}
+          戻る
         </button>
       </div>
     );
@@ -185,14 +186,10 @@ export function VolunteerDetailScreen({
 
   return (
     <div className="organization-detail">
-      <header className="organization-detail__topbar">
-        <button type="button" className="organization-detail__back" onClick={onBack}>
-          &lt;
-        </button>
-      </header>
+      <SecondaryHeader title="預かりボランティア詳細" onBack={onBack} />
 
       <div className="organization-detail__body">
-        <span className="organization-detail__label volunteer-detail__label">預かりボランティア</span>
+        {/* <span className="organization-detail__label volunteer-detail__label">預かりボランティア</span> */}
         <h1 className="organization-detail__name">{volunteer.handleName}</h1>
         <p className="organization-detail__meta">
           {volunteer.prefecture} {volunteer.city}
@@ -225,71 +222,81 @@ export function VolunteerDetailScreen({
             <p className="organization-detail__empty">登録されているスロットはありません。</p>
           ) : (
             <ul className="volunteer-detail__slot-list">
-              {slots.map((slot) => {
-                const occupant = slotOccupants[slot.id];
-                if (occupant && occupant.status === 'SUSPENDED') {
-                  return null;
-                }
-                return (
-                  <li key={slot.id}>
-                    <div className="volunteer-detail__slot-card">
-                      <div className="volunteer-detail__slot-thumb">
-                        {occupant && occupantDogThumbnails[occupant.dogId] ? (
-                          <img src={occupantDogThumbnails[occupant.dogId]} alt="" />
-                        ) : (
-                          <SlotPlaceholderIcon />
-                        )}
-                      </div>
-                      <div className="volunteer-detail__slot-info">
-                        <h3 className="volunteer-detail__slot-title">
-                          {occupant ? (
-                            <button
-                              type="button"
-                              className="volunteer-detail__slot-dog-link"
-                              onClick={() => onSelectDog(occupant.dogId)}
-                            >
+              {[...slots]
+                .sort((a, b) => {
+                  const occA = slotOccupants[a.id];
+                  const occB = slotOccupants[b.id];
+                  if (occA && occB) {
+                    return occB.protectedDate.localeCompare(occA.protectedDate);
+                  }
+                  if (occA) return -1;
+                  if (occB) return 1;
+                  return 0;
+                })
+                .map((slot) => {
+                  const occupant = slotOccupants[slot.id];
+                  if (occupant && occupant.status === 'SUSPENDED') {
+                    return null;
+                  }
+                  return (
+                    <li key={slot.id}>
+                      {occupant ? (
+                        <button
+                          type="button"
+                          className="volunteer-detail__slot-card"
+                          onClick={() => onSelectDog(occupant.dogId)}
+                          title={`${occupant.name}の詳細を見る`}
+                        >
+                          <div className="volunteer-detail__slot-thumb">
+                            {occupantDogThumbnails[occupant.dogId] ? (
+                              <img src={occupantDogThumbnails[occupant.dogId]} alt="" />
+                            ) : (
+                              <SlotPlaceholderIcon />
+                            )}
+                          </div>
+                          <div className="volunteer-detail__slot-info">
+                            <h3 className="volunteer-detail__slot-title">
                               {occupant.name}
-                            </button>
-                          ) : (
-                            '未使用'
-                          )}
-                        </h3>
-                        {occupant ? (
-                          <dl className="volunteer-detail__slot-fact-list">
-                            <div>
-                              <dt>性別</dt>
-                              <dd>{genderLabel[occupant.gender]}</dd>
-                            </div>
-                            <div>
-                              <dt>年齢</dt>
-                              <dd>{calculateAgeLabel(occupant.birthDate, occupant.birthDateEstimated)}</dd>
-                            </div>
-                            <div>
-                              <dt>状態</dt>
-                              <dd>{effectiveDogStatusLabel(occupant)}</dd>
-                            </div>
-                          </dl>
-                        ) : (
-                          <dl className="volunteer-detail__slot-fact-list">
-                            <div>
-                              <dt>性別</dt>
-                              <dd>{slot.conditionGenders.map((g) => fosteringSlotGenderLabel[g]).join('・')}</dd>
-                            </div>
-                            <div>
-                              <dt>年齢</dt>
-                              <dd>{slot.conditionAges.map((a) => fosteringSlotAgeLabel[a]).join('・')}</dd>
-                            </div>
-                            <div>
-                              <dt>大きさ</dt>
-                              <dd>{slot.conditionSizes.map((s) => fosteringSlotSizeLabel[s]).join('・')}</dd>
-                            </div>
-                          </dl>
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
+                            </h3>
+                            <dl className="volunteer-detail__slot-fact-list">
+                              <div>
+                                <dt>性別</dt>
+                                <dd>{genderLabel[occupant.gender]}</dd>
+                              </div>
+                              <div>
+                                <dt>年齢</dt>
+                                <dd>{calculateAgeLabel(occupant.birthDate, occupant.birthDateEstimated)}</dd>
+                              </div>
+                            </dl>
+                          </div>
+                        </button>
+                      ) : (
+                        <div className="volunteer-detail__slot-card">
+                          <div className="volunteer-detail__slot-thumb">
+                            <SlotPlaceholderIcon />
+                          </div>
+                          <div className="volunteer-detail__slot-info">
+                            <h3 className="volunteer-detail__slot-title">未使用</h3>
+                            <dl className="volunteer-detail__slot-fact-list">
+                              <div>
+                                <dt>性別</dt>
+                                <dd>{slot.conditionGenders.map((g) => fosteringSlotGenderLabel[g]).join('・')}</dd>
+                              </div>
+                              <div>
+                                <dt>年齢</dt>
+                                <dd>{slot.conditionAges.map((a) => fosteringSlotAgeLabel[a]).join('・')}</dd>
+                              </div>
+                              <div>
+                                <dt>大きさ</dt>
+                                <dd>{slot.conditionSizes.map((s) => fosteringSlotSizeLabel[s]).join('・')}</dd>
+                              </div>
+                            </dl>
+                          </div>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
             </ul>
           )}
         </div>

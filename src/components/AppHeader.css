@@ -2,16 +2,20 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 12px 12px 12px 20px;
+  padding: 4px 8px 4px 8px;
   border-bottom: 1px solid var(--border);
 }
 
 .app-header__title {
-  font-size: 20px;
   margin: 0;
-  color: var(--text-h);
-  font-weight: 700;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+}
+
+.app-header__logo {
+  height: 60px;
+  display: block;
 }
 
 .app-header__tabs {
@@ -43,6 +47,7 @@
   align-items: center;
   gap: 10px;
   position: relative;
+  padding: 0 10px;
 }
 
 .app-header__account-email {
@@ -97,6 +102,12 @@
   background: var(--social-bg);
 }
 
+.app-header__dashboard-icon {
+  width: 28px;
+  height: 28px;
+  display: block;
+}
+
 .app-header__dashboard-badge {
   position: absolute;
   top: 4px;
@@ -132,6 +143,12 @@
 
 .app-header__menu-toggle:hover {
   background: var(--social-bg);
+}
+
+.app-header__menu-icon {
+  width: 28px;
+  height: 28px;
+  display: block;
 }
 
 .app-header__dropdown-menu {
@@ -206,22 +223,24 @@
 
 @media (max-width: 480px) {
   .app-header {
-    flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
+    padding: 4px;
   }
 
-  .app-header__title {
-    font-size: 17px;
+  .app-header__logo {
+    height: 60px;
   }
 
   .app-header__tab {
-    padding: 6px 12px;
+    padding: 6px 10px;
+    font-size: 13px;
   }
 
   .app-header__filter-toggle,
   .app-header__signup-button,
   .app-header__account-button {
-    padding: 6px 12px;
+    padding: 6px 10px;
+    font-size: 13px;
   }
 
   .app-header__account-email {

@@ -25,6 +25,7 @@ export function useRegisteredOrganizations(): Organization[] {
           name: org.name,
           prefecture: org.prefecture,
           city: org.city,
+          addressLine: org.addressLine,
           latitude: org.latitude as number,
           longitude: org.longitude as number,
           contactEmail: org.contactEmail ?? undefined,

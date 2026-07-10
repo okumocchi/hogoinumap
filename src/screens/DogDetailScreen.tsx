@@ -2,10 +2,11 @@ import { fetchAuthSession, getCurrentUser } from 'aws-amplify/auth';
 import { getUrl, remove } from 'aws-amplify/storage';
 import { type FormEvent, useEffect, useState } from 'react';
 import { Badge } from '../components/Badge';
-import { useRegisteredDogs } from '../hooks/useRegisteredDogs';
-import { useRegisteredOrganizations } from '../hooks/useRegisteredOrganizations';
+import { useRegisteredVolunteers } from '../hooks/useRegisteredVolunteers';
 import { dataClient } from '../lib/dataClient';
-import type { CustodianType, MediaType } from '../types/models';
+import type { CustodianType, MediaType, Dog, Organization, DogStatus } from '../types/models';
+import { SecondaryHeader } from '../components/SecondaryHeader';
+import { getOrCreateAnonToken } from '../utils/likeHelper';
 import {
   calculateAgeAtLabel,
   calculateAgeLabel,
@@ -21,7 +22,6 @@ import './DogDetailScreen.css';
 interface DogDetailScreenProps {
   dogId: string;
   onBack: () => void;
-  backLabel: string;
 }
 
 interface MediaItem {
@@ -59,24 +59,125 @@ function dateInputToIso(dateStr: string): string {
   return new Date(Date.UTC(year, month - 1, day)).toISOString();
 }
 
-export function DogDetailScreen({ dogId, onBack, backLabel }: DogDetailScreenProps) {
-  const registeredDogs = useRegisteredDogs();
-  const registeredOrganizations = useRegisteredOrganizations();
-  const allDogs = registeredDogs;
-  const allOrganizations = registeredOrganizations;
+export function DogDetailScreen({ dogId, onBack }: DogDetailScreenProps) {
+  const registeredVolunteers = useRegisteredVolunteers();
+  const [dog, setDog] = useState<Dog | null>(null);
+  const [organization, setOrganization] = useState<Organization | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const dog = allDogs.find((d) => d.id === dogId);
-  const organization = dog ? allOrganizations.find((o) => o.id === dog.organizationId) : undefined;
+  // ほしいものリストURLの特定 (預かりボランティアまたは所属団体)
+  const fosterVolunteer = dog?.custodianOwnerSub
+    ? registeredVolunteers.find((v) => v.ownerSub === dog.custodianOwnerSub)
+    : undefined;
+
+  const dogWishlistUrl = (dog?.status === 'FOSTERED' && fosterVolunteer?.wishlistUrl)
+    ? fosterVolunteer.wishlistUrl
+    : organization?.wishlistUrl;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDog() {
+      setLoading(true);
+      try {
+        const session = await fetchAuthSession();
+        const authMode = session.tokens ? 'userPool' : 'identityPool';
+
+        // 1. 保護犬情報の取得
+        const dogRes = await dataClient.models.Dog.get({ id: dogId }, { authMode });
+        if (cancelled) return;
+
+        if (!dogRes.data || dogRes.data.status === 'SUSPENDED') {
+          setDog(null);
+          setLoading(false);
+          return;
+        }
+
+        const mappedDog: Dog = {
+          id: dogRes.data.id,
+          organizationId: dogRes.data.organizationId,
+          name: dogRes.data.name ?? '',
+          protectedDate: dogRes.data.protectedDate ?? '',
+          story: dogRes.data.story ?? '',
+          gender: dogRes.data.gender ?? 'UNKNOWN',
+          size: dogRes.data.size ?? 'MEDIUM',
+          birthDate: dogRes.data.birthDate ?? '',
+          birthDateEstimated: dogRes.data.birthDateEstimated ?? false,
+          personality: dogRes.data.personality ?? '',
+          status: (dogRes.data.status ?? 'PROTECTED') as DogStatus,
+          seekingAdopter: dogRes.data.seekingAdopter ?? true,
+          seekingFoster: dogRes.data.seekingFoster ?? false,
+          custodianOwnerSub: (dogRes.data.custodianOwnerSub as unknown as string | null) ?? undefined,
+          sterilizationDate: dogRes.data.sterilizationDate ?? undefined,
+          rabiesVaccinationDate: dogRes.data.rabiesVaccinationDate ?? undefined,
+          mixedVaccinationDate: dogRes.data.mixedVaccinationDate ?? undefined,
+          prefecture: dogRes.data.prefecture,
+          city: dogRes.data.city,
+        };
+
+        setDog(mappedDog);
+
+        // 2. 所属団体情報の取得
+        const orgRes = await dataClient.models.Organization.get({ id: mappedDog.organizationId }, { authMode });
+        if (cancelled) return;
+
+        if (orgRes.data) {
+          setOrganization({
+            id: orgRes.data.id,
+            name: orgRes.data.name,
+            prefecture: orgRes.data.prefecture,
+            city: orgRes.data.city,
+            addressLine: orgRes.data.addressLine,
+            latitude: orgRes.data.latitude as number,
+            longitude: orgRes.data.longitude as number,
+            contactEmail: orgRes.data.contactEmail ?? undefined,
+            contactPhone: orgRes.data.contactPhone ?? undefined,
+            wishlistUrl: orgRes.data.wishlistUrl ?? undefined,
+            websiteUrl: orgRes.data.websiteUrl ?? undefined,
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load dog details', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadDog();
+    return () => {
+      cancelled = true;
+    };
+  }, [dogId]);
 
   const [media, setMedia] = useState<MediaItem[]>([]);
 
   async function fetchMedia(): Promise<MediaItem[]> {
     const session = await fetchAuthSession();
     const authMode = session.tokens ? 'userPool' : 'identityPool';
-    const result = await dataClient.models.DogMedia.listByDogSortedByDate(
-      { dogId },
-      { sortDirection: 'DESC', authMode },
-    );
+    
+    // メディアと全いいねを並列取得
+    const [result, likesResult] = await Promise.all([
+      dataClient.models.DogMedia.listByDogSortedByDate({ dogId }, { sortDirection: 'DESC', authMode }),
+      dataClient.models.MediaLike.list({ authMode, limit: 1000 }),
+    ]);
+
+    const token = getOrCreateAnonToken();
+    const likesMap: Record<string, number> = {};
+    const myLikedMediaIds = new Set<string>();
+    const myLikeIdMap: Record<string, string> = {};
+
+    likesResult.data.forEach((like) => {
+      if (like.dogMediaId) {
+        likesMap[like.dogMediaId] = (likesMap[like.dogMediaId] || 0) + 1;
+        if (like.anonToken === token) {
+          myLikedMediaIds.add(like.dogMediaId);
+          myLikeIdMap[like.dogMediaId] = like.id;
+        }
+      }
+    });
+
+    setLikedIds(myLikedMediaIds);
+    setMyLikeIds(myLikeIdMap);
 
     return Promise.all(
       result.data.map(async (item) => {
@@ -89,7 +190,7 @@ export function DogDetailScreen({ dogId, onBack, backLabel }: DogDetailScreenPro
           mediaType: (item.mediaType ?? 'PHOTO') as MediaType,
           caption: item.caption ?? undefined,
           createdAt: item.capturedAt ?? item.createdAt ?? new Date().toISOString(),
-          likeCount: 0,
+          likeCount: likesMap[item.id] || 0,
           url: url.toString(),
           thumbnailUrl,
           owner: item.owner ?? undefined,
@@ -397,38 +498,124 @@ export function DogDetailScreen({ dogId, onBack, backLabel }: DogDetailScreenPro
   }
 
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [myLikeIds, setMyLikeIds] = useState<Record<string, string>>({}); // dogMediaId -> MediaLike.id
   const [lightboxMedia, setLightboxMedia] = useState<{ mediaType: MediaType; url: string } | null>(null);
 
-  function toggleLike(mediaId: string) {
-    setLikedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(mediaId)) {
-        next.delete(mediaId);
-      } else {
-        next.add(mediaId);
+  async function toggleLike(mediaId: string) {
+    const token = getOrCreateAnonToken();
+    const session = await fetchAuthSession();
+    const authMode = session.tokens ? 'userPool' : 'identityPool';
+
+    const isLiked = likedIds.has(mediaId);
+
+    if (isLiked) {
+      const likeId = myLikeIds[mediaId];
+      if (likeId) {
+        // 楽観的UIアップデート
+        setLikedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(mediaId);
+          return next;
+        });
+        setMedia((prev) =>
+          prev.map((item) =>
+            item.id === mediaId ? { ...item, likeCount: Math.max(0, item.likeCount - 1) } : item
+          )
+        );
+
+        try {
+          await dataClient.models.MediaLike.delete({ id: likeId }, { authMode });
+          setMyLikeIds((prev) => {
+            const next = { ...prev };
+            delete next[mediaId];
+            return next;
+          });
+        } catch (err) {
+          console.error('Failed to unlike', err);
+          setLikedIds((prev) => {
+            const next = new Set(prev);
+            next.add(mediaId);
+            return next;
+          });
+          setMedia((prev) =>
+            prev.map((item) =>
+              item.id === mediaId ? { ...item, likeCount: item.likeCount + 1 } : item
+            )
+          );
+        }
       }
-      return next;
-    });
+    } else {
+      // 楽観的UIアップデート
+      setLikedIds((prev) => {
+        const next = new Set(prev);
+        next.add(mediaId);
+        return next;
+      });
+      setMedia((prev) =>
+        prev.map((item) =>
+          item.id === mediaId ? { ...item, likeCount: item.likeCount + 1 } : item
+        )
+      );
+
+      try {
+        const res = await dataClient.models.MediaLike.create(
+          {
+            dogMediaId: mediaId,
+            anonToken: token,
+          } as any,
+          { authMode }
+        );
+
+        if (res.data) {
+          setMyLikeIds((prev) => ({
+            ...prev,
+            [mediaId]: res.data.id,
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to like', err);
+        setLikedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(mediaId);
+          return next;
+        });
+        setMedia((prev) =>
+          prev.map((item) =>
+            item.id === mediaId ? { ...item, likeCount: Math.max(0, item.likeCount - 1) } : item
+          )
+        );
+      }
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="dog-detail dog-detail--loading">
+        <SecondaryHeader title="保護犬詳細" onBack={onBack} />
+        <div className="dog-detail__body" style={{ textAlign: 'center', padding: '48px 20px' }}>
+          <p>読み込み中…</p>
+        </div>
+      </div>
+    );
   }
 
   if (!dog) {
     return (
       <div className="dog-detail dog-detail--not-found">
-        <p>保護犬情報が見つかりませんでした。</p>
-        <button type="button" onClick={onBack}>
-          {backLabel}
-        </button>
+        <SecondaryHeader title="保護犬詳細" onBack={onBack} />
+        <div className="dog-detail__body" style={{ textAlign: 'center', padding: '48px 20px' }}>
+          <p>保護犬情報が見つかりませんでした。</p>
+          <button type="button" className="dog-detail__small-button" onClick={onBack}>
+            戻る
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="dog-detail">
-      <header className="dog-detail__topbar">
-        <button type="button" className="dog-detail__back" onClick={onBack}>
-          &lt;
-        </button>
-      </header>
+      <SecondaryHeader title="保護犬詳細" onBack={onBack} />
 
       <div className="dog-detail__body">
         <section className="dog-detail__header">
@@ -558,7 +745,7 @@ export function DogDetailScreen({ dogId, onBack, backLabel }: DogDetailScreenPro
           <div className="dog-detail__media-grid">
             {media.map((item) => {
               const liked = likedIds.has(item.id);
-              const displayCount = item.likeCount + (liked ? 1 : 0);
+              const displayCount = item.likeCount;
               const isOwner =
                 item.owner &&
                 (item.owner === currentUserSub ||
@@ -618,14 +805,27 @@ export function DogDetailScreen({ dogId, onBack, backLabel }: DogDetailScreenPro
                       <p className="media-card__caption">{item.caption}</p>
                     </div>
                   )}
-                  <button
-                    type="button"
-                    className={`media-card__like ${liked ? 'is-liked' : ''}`}
-                    onClick={() => toggleLike(item.id)}
-                    aria-pressed={liked}
-                  >
-                    {liked ? '❤️' : '🤍'} {displayCount}
-                  </button>
+                  <div className="media-card__actions-container">
+                    {dogWishlistUrl && (
+                      <a
+                        href={dogWishlistUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="media-card__gift-link"
+                        title="プレゼントを贈る（ほしいものリスト）"
+                      >
+                        🎁
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      className={`media-card__like ${liked ? 'is-liked' : ''}`}
+                      onClick={() => toggleLike(item.id)}
+                      aria-pressed={liked}
+                    >
+                      {liked ? '❤️' : '🤍'} {displayCount}
+                    </button>
+                  </div>
                 </article>
               );
             })}

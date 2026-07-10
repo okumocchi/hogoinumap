@@ -1,39 +1,23 @@
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { getUrl } from 'aws-amplify/storage';
 import { useEffect, useMemo, useState } from 'react';
-import { AppHeader, type BrowseView } from '../components/AppHeader';
+import { SecondaryHeader } from '../components/SecondaryHeader';
 import { Badge } from '../components/Badge';
 import { useRegisteredDogs } from '../hooks/useRegisteredDogs';
 import { useRegisteredOrganizations } from '../hooks/useRegisteredOrganizations';
 import { dataClient } from '../lib/dataClient';
 import type { Dog } from '../types/models';
-import { calculateAgeLabel, effectiveDogStatusLabel, genderLabel, isDogOpenForFosterOffers } from '../utils/dog';
+import { calculateAgeLabel, genderLabel, isDogOpenForFosterOffers } from '../utils/dog';
 import './DogListScreen.css';
 
 interface DogListScreenProps {
   onSelectDog: (dogId: string) => void;
-  activeView: BrowseView;
-  onChangeView: (view: BrowseView) => void;
-  onSignUp: () => void;
-  currentUserEmail: string | null | undefined;
-  onLogin: () => void;
-  onLogout: () => void;
-  showDashboardButton?: boolean;
-  onOpenDashboard?: () => void;
-  dashboardBadgeCount?: number;
+  onBack: () => void;
 }
 
 export function DogListScreen({
   onSelectDog,
-  activeView,
-  onChangeView,
-  onSignUp,
-  currentUserEmail,
-  onLogin,
-  onLogout,
-  showDashboardButton,
-  onOpenDashboard,
-  dashboardBadgeCount,
+  onBack,
 }: DogListScreenProps) {
   const registeredDogs = useRegisteredDogs();
   const registeredOrganizations = useRegisteredOrganizations();
@@ -105,23 +89,14 @@ export function DogListScreen({
     () =>
       allDogs
         .filter((dog) => prefectureFilter === 'all' || dog.prefecture === prefectureFilter)
-        .filter((dog) => !seekingOnly || dog.seekingFoster),
+        .filter((dog) => !seekingOnly || dog.seekingFoster)
+        .sort((a, b) => b.protectedDate.localeCompare(a.protectedDate)),
     [allDogs, prefectureFilter, seekingOnly],
   );
 
   return (
     <div className="dog-list-screen">
-      <AppHeader
-        activeView={activeView}
-        onChangeView={onChangeView}
-        onSignUp={onSignUp}
-        currentUserEmail={currentUserEmail}
-        onLogin={onLogin}
-        onLogout={onLogout}
-        showDashboardButton={showDashboardButton}
-        onOpenDashboard={onOpenDashboard}
-        dashboardBadgeCount={dashboardBadgeCount}
-      />
+      <SecondaryHeader title="保護犬一覧" onBack={onBack} />
 
       <div className="dog-list-screen__filters">
         {/* <label className="dog-list-screen__filter-field">
@@ -169,7 +144,7 @@ export function DogListScreen({
                 <div className="dog-list-card__heading">
                   <span className="dog-list-card__name">{dog.name}</span>
                   <span className="dog-list-card__badges">
-                    <Badge tone="neutral">{effectiveDogStatusLabel(dog)}</Badge>
+                    {/* <Badge tone="neutral">{effectiveDogStatusLabel(dog)}</Badge> */}
                     {dog.seekingAdopter && <Badge tone="success">里親募集中</Badge>}
                     {isDogOpenForFosterOffers(dog) && <Badge tone="accent">預かり募集中</Badge>}
                   </span>
