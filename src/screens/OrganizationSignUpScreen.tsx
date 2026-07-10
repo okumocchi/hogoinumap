@@ -51,6 +51,7 @@ export function OrganizationSignUpScreen({ onBack, onComplete }: OrganizationSig
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -162,9 +163,9 @@ export function OrganizationSignUpScreen({ onBack, onComplete }: OrganizationSig
       <div className="org-signup">
         <div className="org-signup__body org-signup__done">
           <h1>登録が完了しました</h1>
-          <p>「{form.name}」の団体アカウントを作成しました。地図に保護犬を登録できるようになります。</p>
+          <p>「{form.name}」のアカウントを作成しました。</p>
           <button type="button" className="org-signup__primary-button" onClick={onComplete}>
-            地図に戻る
+            サイトトップへ
           </button>
         </div>
       </div>
@@ -226,22 +227,30 @@ export function OrganizationSignUpScreen({ onBack, onComplete }: OrganizationSig
           <label className="org-signup__field">
             <span>パスワード</span>
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               required
               minLength={15}
               value={form.password}
               onChange={(e) => updateField('password', e.target.value)}
             />
-            <small>15文字以上で入力してください(大文字・小文字・数字・記号の組み合わせは不要です)</small>
+            <small>15文字以上で入力してください</small>
           </label>
           <label className="org-signup__field">
             <span>パスワード(確認)</span>
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               required
               value={form.passwordConfirm}
               onChange={(e) => updateField('passwordConfirm', e.target.value)}
             />
+          </label>
+          <label className="org-signup__show-password">
+            <input
+              type="checkbox"
+              checked={showPassword}
+              onChange={(e) => setShowPassword(e.target.checked)}
+            />
+            <span>パスワードを表示する</span>
           </label>
 
           <h2>団体情報</h2>
@@ -309,7 +318,7 @@ export function OrganizationSignUpScreen({ onBack, onComplete }: OrganizationSig
             />
           </label> */}
           <label className="org-signup__field">
-            <span>ほしいものリストURL(任意)</span>
+            <span>AmazonほしいものリストURL(任意)</span>
             <input
               type="url"
               value={form.wishlistUrl}

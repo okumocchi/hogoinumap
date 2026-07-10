@@ -43,6 +43,7 @@ export function VolunteerSignUpScreen({ onBack, onComplete }: VolunteerSignUpScr
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -148,9 +149,9 @@ export function VolunteerSignUpScreen({ onBack, onComplete }: VolunteerSignUpScr
       <div className="volunteer-signup">
         <div className="volunteer-signup__body volunteer-signup__done">
           <h1>登録が完了しました</h1>
-          <p>「{form.handleName}」さんの預かりボランティアアカウントを作成しました。ができるようになります。</p>
+          <p>「{form.handleName}」さんのアカウントを作成しました。</p>
           <button type="button" className="volunteer-signup__primary-button" onClick={onComplete}>
-            地図に戻る
+            サイトトップへ
           </button>
         </div>
       </div>
@@ -214,22 +215,30 @@ export function VolunteerSignUpScreen({ onBack, onComplete }: VolunteerSignUpScr
           <label className="volunteer-signup__field">
             <span>パスワード</span>
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               required
               minLength={15}
               value={form.password}
               onChange={(e) => updateField('password', e.target.value)}
             />
-            <small>15文字以上で入力してください(大文字・小文字・数字・記号の組み合わせは不要です)</small>
+            <small>15文字以上で入力してください</small>
           </label>
           <label className="volunteer-signup__field">
             <span>パスワード(確認)</span>
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               required
               value={form.passwordConfirm}
               onChange={(e) => updateField('passwordConfirm', e.target.value)}
             />
+          </label>
+          <label className="volunteer-signup__show-password">
+            <input
+              type="checkbox"
+              checked={showPassword}
+              onChange={(e) => setShowPassword(e.target.checked)}
+            />
+            <span>パスワードを表示する</span>
           </label>
 
           <h2>プロフィール</h2>

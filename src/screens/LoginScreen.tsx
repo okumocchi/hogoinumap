@@ -22,6 +22,7 @@ export function LoginScreen({ onBack, onComplete, onSignUp }: LoginScreenProps) 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleLogin(event: FormEvent) {
     event.preventDefault();
@@ -148,7 +149,7 @@ export function LoginScreen({ onBack, onComplete, onSignUp }: LoginScreenProps) 
             <label className="login-screen__field">
               <span>新しいパスワード</span>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 minLength={15}
                 value={newPassword}
@@ -159,11 +160,19 @@ export function LoginScreen({ onBack, onComplete, onSignUp }: LoginScreenProps) 
             <label className="login-screen__field">
               <span>新しいパスワード(確認)</span>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={newPasswordConfirm}
                 onChange={(e) => setNewPasswordConfirm(e.target.value)}
               />
+            </label>
+            <label className="login-screen__show-password">
+              <input
+                type="checkbox"
+                checked={showPassword}
+                onChange={(e) => setShowPassword(e.target.checked)}
+              />
+              <span>パスワードを表示する</span>
             </label>
             {error && <p className="login-screen__error">{error}</p>}
             <button type="submit" className="login-screen__primary-button" disabled={submitting}>
@@ -239,7 +248,20 @@ export function LoginScreen({ onBack, onComplete, onSignUp }: LoginScreenProps) 
           </label>
           <label className="login-screen__field">
             <span>パスワード</span>
-            <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            <input
+              type={showPassword ? 'text' : 'password'}
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </label>
+          <label className="login-screen__show-password">
+            <input
+              type="checkbox"
+              checked={showPassword}
+              onChange={(e) => setShowPassword(e.target.checked)}
+            />
+            <span>パスワードを表示する</span>
           </label>
 
           {error && <p className="login-screen__error">{error}</p>}

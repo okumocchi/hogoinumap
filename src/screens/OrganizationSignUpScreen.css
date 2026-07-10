@@ -131,3 +131,20 @@
   gap: 12px;
   padding-top: 64px;
 }
+
+.org-signup__show-password {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  margin-top: -4px;
+  user-select: none;
+}
+
+.org-signup__show-password input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+}
