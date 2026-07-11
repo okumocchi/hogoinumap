@@ -54,8 +54,8 @@ function dispersePins<T extends MapPinData>(pins: T[]): T[] {
     if (group.length === 1) {
       dispersedPins.push(group[0]);
     } else {
-      // 0.0002度は緯度方向で約20メートル相当の距離
-      const radius = 0.0002;
+      // 0.009度は緯度方向で約1km相当の距離
+      const radius = 0.009;
       group.forEach((pin, index) => {
         const angle = (index * 2 * Math.PI) / group.length;
         const dispersedLatitude = pin.latitude + radius * Math.sin(angle);
@@ -404,15 +404,60 @@ export function MapboxMap({ orgPins, volunteerPins, onSelectPin, homeLocation, o
     map.on('move', renderPins);
     map.on('moveend', renderPins);
 
+    let touchTimeout: number | null = null;
+    let touchStartLngLat: mapboxgl.LngLat | null = null;
+    const LONG_PRESS_DURATION = 800;
+
+    const cancelTouch = () => {
+      if (touchTimeout) {
+        clearTimeout(touchTimeout);
+        touchTimeout = null;
+      }
+      touchStartLngLat = null;
+    };
+
     map.on('contextmenu', (e) => {
       if (onLongPressRef.current) {
         onLongPressRef.current(e.lngLat.lat, e.lngLat.lng);
       }
     });
 
+    map.on('touchstart', (e) => {
+      if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches.length > 1) {
+        cancelTouch();
+        return;
+      }
+      touchStartLngLat = e.lngLat;
+      touchTimeout = window.setTimeout(() => {
+        if (onLongPressRef.current && touchStartLngLat) {
+          onLongPressRef.current(touchStartLngLat.lat, touchStartLngLat.lng);
+        }
+        touchTimeout = null;
+      }, LONG_PRESS_DURATION);
+    });
+
+    map.on('touchmove', (e) => {
+      if (touchStartLngLat && touchTimeout) {
+        const distance = Math.sqrt(
+          Math.pow(e.lngLat.lng - touchStartLngLat.lng, 2) +
+          Math.pow(e.lngLat.lat - touchStartLngLat.lat, 2)
+        );
+        if (distance > 0.001) {
+          cancelTouch();
+        }
+      }
+    });
+
+    map.on('touchend', cancelTouch);
+    map.on('dragstart', cancelTouch);
+    map.on('zoomstart', cancelTouch);
+
     mapRef.current = map;
 
     return () => {
+      if (touchTimeout) {
+        clearTimeout(touchTimeout);
+      }
       markersRef.current.forEach((marker) => marker.remove());
       markersRef.current = [];
       map.remove();
