@@ -10,12 +10,16 @@ import { calculateAgeLabel, effectiveDogStatusLabel, genderLabel } from '../util
 import { PREFECTURES } from '../utils/prefectures';
 import { SecondaryHeader } from '../components/SecondaryHeader';
 import './VolunteerDashboardScreen.css';
+import { type ChatThreadItem } from '../hooks/useDashboardBadges';
 
 interface VolunteerDashboardScreenProps {
   volunteer: MyVolunteer;
   onBack: () => void;
   onUpdated: () => void;
   onSelectDog: (dogId: string) => void;
+  onOpenChatThread: (threadId: string, counterpartName: string, owners: string[]) => void;
+  chatThreads: ChatThreadItem[];
+  chatUnreads: Record<string, number>;
 }
 
 type Mode = 'view' | 'edit';
@@ -155,7 +159,15 @@ function volunteerToFormState(volunteer: MyVolunteer): FormState {
   };
 }
 
-export function VolunteerDashboardScreen({ volunteer, onBack, onUpdated, onSelectDog }: VolunteerDashboardScreenProps) {
+export function VolunteerDashboardScreen({
+  volunteer,
+  onBack,
+  onUpdated,
+  onSelectDog,
+  onOpenChatThread,
+  chatThreads,
+  chatUnreads,
+}: VolunteerDashboardScreenProps) {
   const [mode, setMode] = useState<Mode>('view');
   const [form, setForm] = useState<FormState>(volunteerToFormState(volunteer));
   const [submitting, setSubmitting] = useState(false);
@@ -614,9 +626,57 @@ export function VolunteerDashboardScreen({ volunteer, onBack, onUpdated, onSelec
               </div>
             </dl>
 
+            <section className="volunteer-dashboard__section">
+              <h2>
+                メッセージ
+                {chatThreads.some((t) => (chatUnreads[t.id] ?? 0) > 0) && (
+                  <span className="volunteer-dashboard__section-badge">
+                    {chatThreads.filter((t) => (chatUnreads[t.id] ?? 0) > 0).length}
+                  </span>
+                )}
+              </h2>
+              {chatThreads.length === 0 ? (
+                <p className="volunteer-dashboard__empty">やり取りしているメッセージはありません。</p>
+              ) : (
+                <ul className="volunteer-dashboard__chat-list">
+                  {chatThreads.map((thread) => {
+                    const myKey = `volunteer#${volunteer.id}`;
+                    const counterpartName =
+                      thread.participantAKey === myKey ? thread.participantBName : thread.participantAName;
+                    const hasUnread = (chatUnreads[thread.id] ?? 0) > 0;
+
+                    return (
+                      <li key={thread.id} className="volunteer-dashboard__chat-card">
+                        <div className="volunteer-dashboard__chat-info">
+                          <span className="volunteer-dashboard__chat-name">
+                            {counterpartName}
+                            {hasUnread && <span className="volunteer-dashboard__unread-indicator">🔴 未読あり</span>}
+                          </span>
+                          <button
+                            type="button"
+                            className="volunteer-dashboard__chat-button"
+                            onClick={() => onOpenChatThread(thread.id, counterpartName, thread.owners)}
+                          >
+                            チャットを開く
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+
             {!loadingCustodyDogs && custodyDogs.length > 0 && (
               <section className="volunteer-dashboard__section">
-                <h2>預かり手続き中の保護犬</h2>
+                <h2>
+                  預かり手続き中の保護犬
+                  {custodyDogs.filter((d) => d.status === 'IN_TRANSIT').length > 0 && (
+                    <span className="volunteer-dashboard__section-badge">
+                      {custodyDogs.filter((d) => d.status === 'IN_TRANSIT').length}
+                    </span>
+                  )}
+                </h2>
                 {custodyError && <p className="volunteer-dashboard__error">{custodyError}</p>}
                 <ul className="volunteer-dashboard__org-list">
                   {custodyDogs.map((dog) => (

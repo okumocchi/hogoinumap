@@ -22,6 +22,7 @@ import './DogDetailScreen.css';
 interface DogDetailScreenProps {
   dogId: string;
   onBack: () => void;
+  onSelectOrganization: (organizationId: string) => void;
 }
 
 interface MediaItem {
@@ -59,7 +60,7 @@ function dateInputToIso(dateStr: string): string {
   return new Date(Date.UTC(year, month - 1, day)).toISOString();
 }
 
-export function DogDetailScreen({ dogId, onBack }: DogDetailScreenProps) {
+export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDetailScreenProps) {
   const registeredVolunteers = useRegisteredVolunteers();
   const [dog, setDog] = useState<Dog | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(null);
@@ -154,7 +155,7 @@ export function DogDetailScreen({ dogId, onBack }: DogDetailScreenProps) {
   async function fetchMedia(): Promise<MediaItem[]> {
     const session = await fetchAuthSession();
     const authMode = session.tokens ? 'userPool' : 'identityPool';
-    
+
     // メディアと全いいねを並列取得
     const [result, likesResult] = await Promise.all([
       dataClient.models.DogMedia.listByDogSortedByDate({ dogId }, { sortDirection: 'DESC', authMode }),
@@ -501,6 +502,17 @@ export function DogDetailScreen({ dogId, onBack }: DogDetailScreenProps) {
   const [myLikeIds, setMyLikeIds] = useState<Record<string, string>>({}); // dogMediaId -> MediaLike.id
   const [lightboxMedia, setLightboxMedia] = useState<{ mediaType: MediaType; url: string } | null>(null);
 
+  useEffect(() => {
+    if (lightboxMedia) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [lightboxMedia]);
+
   async function toggleLike(mediaId: string) {
     const token = getOrCreateAnonToken();
     const session = await fetchAuthSession();
@@ -648,13 +660,13 @@ export function DogDetailScreen({ dogId, onBack }: DogDetailScreenProps) {
               <div>
                 <dt>保護団体</dt>
                 <dd>
-                  {organization.websiteUrl ? (
-                    <a href={organization.websiteUrl} target="_blank" rel="noopener noreferrer" className="dog-detail__org-link">
-                      {organization.name}
-                    </a>
-                  ) : (
-                    organization.name
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => onSelectOrganization(organization.id)}
+                    className="dog-detail__org-link"
+                  >
+                    {organization.name}
+                  </button>
                 </dd>
                 <div className='dog-detail__block__org_link'>里親希望の方、預かりボランティアを希望される方は保護団体のWEBサイトをご確認ください</div>
               </div>

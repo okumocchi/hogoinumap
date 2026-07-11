@@ -493,6 +493,13 @@
 .dog-detail__org-link {
   color: var(--accent);
   text-decoration: underline;
+  border: none;
+  background: none;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+  display: inline;
 }
 
 .dog-detail__org-link:hover {

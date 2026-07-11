@@ -1,10 +1,10 @@
 import { getCurrentUser, signOut } from 'aws-amplify/auth';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { ChatWindow } from './components/ChatWindow';
 import { useCurrentUser } from './hooks/useCurrentUser';
 import { useMyOrganization } from './hooks/useMyOrganization';
 import { useMyVolunteer } from './hooks/useMyVolunteer';
-import { usePendingAffiliationCount } from './hooks/usePendingAffiliationCount';
+import { useDashboardBadges } from './hooks/useDashboardBadges';
 import { type ChatParticipant, chatParticipantKey, findOrCreateChatThread } from './lib/chat';
 import { DogDetailScreen } from './screens/DogDetailScreen';
 import { DogListScreen } from './screens/DogListScreen';
@@ -26,7 +26,13 @@ type Route =
   | { screen: 'dog-list' }
   | { screen: 'gallery' }
   | { screen: 'dog-detail'; dogId: string; from: FromScreen }
-  | { screen: 'organization-detail'; organizationId: string; from: FromScreen }
+  | {
+      screen: 'organization-detail';
+      organizationId: string;
+      from: FromScreen;
+      fromDogId?: string;
+      fromDogFrom?: FromScreen;
+    }
   | { screen: 'volunteer-detail'; volunteerId: string; from: FromScreen }
   | { screen: 'login'; from: FromScreen }
   | { screen: 'signup-choice'; from: FromScreen }
@@ -48,8 +54,47 @@ function App() {
   const currentUserEmail = useCurrentUser();
   const [myOrganization, refetchMyOrganization] = useMyOrganization();
   const [myVolunteer, refetchMyVolunteer] = useMyVolunteer();
-  const [pendingAffiliationCount, refetchPendingAffiliationCount] = usePendingAffiliationCount(myOrganization?.id);
   const [activeChat, setActiveChat] = useState<ActiveChat | null>(null);
+
+  const [badges, refetchBadges] = useDashboardBadges(
+    myOrganization?.id,
+    myVolunteer?.id,
+    activeChat?.threadId ?? null
+  );
+
+  // アクティブチャットのスレッド既読処理
+  useEffect(() => {
+    if (!activeChat) return;
+
+    function markAsRead() {
+      localStorage.setItem(`chat_last_read_at:${activeChat!.threadId}`, new Date().toISOString());
+      void refetchBadges();
+    }
+
+    markAsRead();
+    const interval = setInterval(markAsRead, 4000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [activeChat, refetchBadges]);
+
+  function handleOpenChatThread(threadId: string, counterpartName: string, owners: string[]) {
+    const me: Omit<ChatParticipant, 'ownerSub'> | null = myOrganization
+      ? { kind: 'organization', id: myOrganization.id, name: myOrganization.name }
+      : myVolunteer
+        ? { kind: 'volunteer', id: myVolunteer.id, name: myVolunteer.handleName }
+        : null;
+    if (!me) return;
+
+    setActiveChat({
+      threadId,
+      owners,
+      myKey: chatParticipantKey(me.kind, me.id),
+      myName: me.name,
+      counterpartName,
+    });
+  }
 
   // ログイン中ユーザー自身の参加者情報(団体/ボランティアのどちらでもない場合はnull)
   const viewerParticipant = myOrganization
@@ -94,13 +139,32 @@ function App() {
       <DogDetailScreen
         dogId={route.dogId}
         onBack={() => setRoute({ screen: route.from })}
+        onSelectOrganization={(orgId) =>
+          setRoute({
+            screen: 'organization-detail',
+            organizationId: orgId,
+            from: route.from,
+            fromDogId: route.dogId,
+            fromDogFrom: route.from,
+          })
+        }
       />
     );
   } else if (route.screen === 'organization-detail') {
     screen = (
       <OrganizationDetailScreen
         organizationId={route.organizationId}
-        onBack={() => setRoute({ screen: route.from })}
+        onBack={() => {
+          if ('fromDogId' in route && route.fromDogId) {
+            setRoute({
+              screen: 'dog-detail',
+              dogId: route.fromDogId,
+              from: route.fromDogFrom || 'map',
+            });
+          } else {
+            setRoute({ screen: route.from });
+          }
+        }}
         onSelectDog={(dogId) => setRoute({ screen: 'dog-detail', dogId, from: route.from })}
         viewerParticipant={viewerParticipant}
         onStartChat={handleStartChat}
@@ -157,19 +221,29 @@ function App() {
       <OrganizationDashboardScreen
         organization={myOrganization}
         onBack={() => {
-          refetchPendingAffiliationCount();
+          void refetchBadges();
           setRoute({ screen: route.from });
         }}
         onUpdated={refetchMyOrganization}
+        onOpenChatThread={handleOpenChatThread}
+        chatThreads={badges.chatThreads}
+        chatUnreads={badges.chatUnreads}
+        pendingMatchOffers={badges.pendingMatchOffers}
       />
     ) : null;
   } else if (route.screen === 'volunteer-dashboard') {
     screen = myVolunteer ? (
       <VolunteerDashboardScreen
         volunteer={myVolunteer}
-        onBack={() => setRoute({ screen: route.from })}
+        onBack={() => {
+          void refetchBadges();
+          setRoute({ screen: route.from });
+        }}
         onUpdated={refetchMyVolunteer}
         onSelectDog={(dogId) => setRoute({ screen: 'dog-detail', dogId, from: route.from })}
+        onOpenChatThread={handleOpenChatThread}
+        chatThreads={badges.chatThreads}
+        chatUnreads={badges.chatUnreads}
       />
     ) : null;
   } else if (route.screen === 'dog-list') {
@@ -217,7 +291,7 @@ function App() {
         onLogout={onLogout}
         showDashboardButton={showDashboardButton}
         onOpenDashboard={onOpenDashboard}
-        dashboardBadgeCount={pendingAffiliationCount}
+        dashboardBadgeCount={badges.total}
       />
     );
   }

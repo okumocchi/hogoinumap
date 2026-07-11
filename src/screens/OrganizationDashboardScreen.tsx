@@ -11,11 +11,16 @@ import { PREFECTURES } from '../utils/prefectures';
 import { OrganizationDogDetailScreen } from './OrganizationDogDetailScreen';
 import { SecondaryHeader } from '../components/SecondaryHeader';
 import './OrganizationDashboardScreen.css';
+import { type ChatThreadItem } from '../hooks/useDashboardBadges';
 
 interface OrganizationDashboardScreenProps {
   organization: MyOrganization;
   onBack: () => void;
   onUpdated: () => void;
+  onOpenChatThread: (threadId: string, counterpartName: string, owners: string[]) => void;
+  chatThreads: ChatThreadItem[];
+  chatUnreads: Record<string, number>;
+  pendingMatchOffers: number;
 }
 
 interface OrgInfoFormState {
@@ -102,7 +107,15 @@ function dogToFormValues(dog: Dog): DogFormValues {
   };
 }
 
-export function OrganizationDashboardScreen({ organization, onBack, onUpdated }: OrganizationDashboardScreenProps) {
+export function OrganizationDashboardScreen({
+  organization,
+  onBack,
+  onUpdated,
+  onOpenChatThread,
+  chatThreads,
+  chatUnreads,
+  pendingMatchOffers,
+}: OrganizationDashboardScreenProps) {
   const [mode, setMode] = useState<Mode>({ screen: 'list' });
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -169,6 +182,10 @@ export function OrganizationDashboardScreen({ organization, onBack, onUpdated }:
     if (dogs.length > 0) {
       loadMedia();
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [dogs]);
 
   async function fetchDogs(): Promise<Dog[]> {
@@ -582,6 +599,47 @@ export function OrganizationDashboardScreen({ organization, onBack, onUpdated }:
           <>
             <section className="org-dashboard__section">
               <h2>
+                メッセージ
+                {chatThreads.some((t) => (chatUnreads[t.id] ?? 0) > 0) && (
+                  <span className="org-dashboard__section-badge">
+                    {chatThreads.filter((t) => (chatUnreads[t.id] ?? 0) > 0).length}
+                  </span>
+                )}
+              </h2>
+              {chatThreads.length === 0 ? (
+                <p className="org-dashboard__empty">やり取りしているメッセージはありません。</p>
+              ) : (
+                <ul className="org-dashboard__chat-list">
+                  {chatThreads.map((thread) => {
+                    const myKey = `organization#${organization.id}`;
+                    const counterpartName =
+                      thread.participantAKey === myKey ? thread.participantBName : thread.participantAName;
+                    const hasUnread = (chatUnreads[thread.id] ?? 0) > 0;
+
+                    return (
+                      <li key={thread.id} className="org-dashboard__chat-card">
+                        <div className="org-dashboard__chat-info">
+                          <span className="org-dashboard__chat-name">
+                            {counterpartName}
+                            {hasUnread && <span className="org-dashboard__unread-indicator">🔴 未読あり</span>}
+                          </span>
+                          <button
+                            type="button"
+                            className="org-dashboard__chat-button"
+                            onClick={() => onOpenChatThread(thread.id, counterpartName, thread.owners)}
+                          >
+                            チャットを開く
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+
+            <section className="org-dashboard__section">
+              <h2>
                 預かりボランティア登録申請
                 {affiliationRequests.length > 0 && (
                   <span className="org-dashboard__section-badge">{affiliationRequests.length}</span>
@@ -619,7 +677,7 @@ export function OrganizationDashboardScreen({ organization, onBack, onUpdated }:
                           </div>
                         </div>
                         <p className="org-dashboard__affiliation-meta">
-                          {request.volunteerPrefecture} {request.volunteerCity}
+                           {request.volunteerPrefecture} {request.volunteerCity}
                         </p>
                         {request.requestMessage && (
                           <p className="org-dashboard__affiliation-message">{request.requestMessage}</p>
@@ -643,46 +701,63 @@ export function OrganizationDashboardScreen({ organization, onBack, onUpdated }:
 
             {loading ? (
               <p className="org-dashboard__empty">読み込み中…</p>
-            ) : dogs.length === 0 ? (
-              <p className="org-dashboard__empty">登録されている保護犬はまだいません。</p>
             ) : (
-              <ul className="org-dashboard__dog-list">
-                {dogs.map((dog) => (
-                  <li key={dog.id}>
-                    <button
-                      type="button"
-                      className="org-dashboard__dog-card"
-                      onClick={() => setMode({ screen: 'dog-detail', dogId: dog.id })}
-                    >
-                      <div
-                        className="org-dashboard__dog-thumb"
-                        style={
-                          registeredMedia[dog.id]?.thumbnailUrl
-                            ? { backgroundImage: `url(${registeredMedia[dog.id].thumbnailUrl})` }
-                            : undefined
-                        }
-                      >
-                        {!registeredMedia[dog.id]?.thumbnailUrl && (
-                          <span className="org-dashboard__dog-thumb-fallback" aria-hidden="true">
-                            🐕
-                          </span>
-                        )}
-                      </div>
-                      <div className="org-dashboard__dog-info">
-                        <div className="org-dashboard__dog-heading">
-                          <span className="org-dashboard__dog-name">{dog.name}</span>
-                          <span className="org-dashboard__dog-status">{effectiveDogStatusLabel(dog)}</span>
-                        </div>
-                        <p className="org-dashboard__dog-meta">
-                          {genderLabel[dog.gender]} ・ {calculateAgeLabel(dog.birthDate, dog.birthDateEstimated)}
-                          {dog.seekingAdopter && ' ・ 里親募集中'}
-                          {isDogOpenForFosterOffers(dog) && ' ・ 預かりボランティア募集中'}
-                        </p>
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <div className="org-dashboard__section-title-row">
+                  <h2>
+                    登録されている保護犬
+                    {pendingMatchOffers > 0 && (
+                      <span className="org-dashboard__section-badge">{pendingMatchOffers}</span>
+                    )}
+                  </h2>
+                </div>
+                {dogs.length === 0 ? (
+                  <p className="org-dashboard__empty">登録されている保護犬はまだいません。</p>
+                ) : (
+                  <ul className="org-dashboard__dog-list">
+                    {dogs.map((dog) => (
+                      <li key={dog.id}>
+                        <button
+                          type="button"
+                          className="org-dashboard__dog-card"
+                          onClick={() => setMode({ screen: 'dog-detail', dogId: dog.id })}
+                        >
+                          <div
+                            className="org-dashboard__dog-thumb"
+                            style={
+                              registeredMedia[dog.id]?.thumbnailUrl
+                                ? { backgroundImage: `url(${registeredMedia[dog.id].thumbnailUrl})` }
+                                : undefined
+                            }
+                          >
+                            {!registeredMedia[dog.id]?.thumbnailUrl && (
+                              <span className="org-dashboard__dog-thumb-fallback" aria-hidden="true">
+                                🐕
+                              </span>
+                            )}
+                          </div>
+                          <div className="org-dashboard__dog-info">
+                            <div className="org-dashboard__dog-heading">
+                              <span className="org-dashboard__dog-name">
+                                {dog.name}
+                                {dog.status === 'PROTECTED' && dog.custodianOwnerSub && (
+                                  <span className="org-dashboard__dog-badge">申し出あり</span>
+                                )}
+                              </span>
+                              <span className="org-dashboard__dog-status">{effectiveDogStatusLabel(dog)}</span>
+                            </div>
+                            <p className="org-dashboard__dog-meta">
+                              {genderLabel[dog.gender]} ・ {calculateAgeLabel(dog.birthDate, dog.birthDateEstimated)}
+                              {dog.seekingAdopter && ' ・ 里親募集中'}
+                              {isDogOpenForFosterOffers(dog) && ' ・ 預かりボランティア募集中'}
+                            </p>
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
             )}
           </>
         )}

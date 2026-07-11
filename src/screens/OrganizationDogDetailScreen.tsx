@@ -66,6 +66,17 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
   const [panel, setPanel] = useState<Panel>({ type: 'none' });
   const [lightboxMedia, setLightboxMedia] = useState<{ mediaType: MediaType; url: string } | null>(null);
 
+  useEffect(() => {
+    if (lightboxMedia) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [lightboxMedia]);
+
   const [custodyHistory, setCustodyHistory] = useState<CustodyHistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [editingHistoryId, setEditingHistoryId] = useState<string | null>(null);

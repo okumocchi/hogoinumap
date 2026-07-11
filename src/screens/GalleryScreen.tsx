@@ -41,6 +41,17 @@ export function GalleryScreen({ onSelectDog, onBack }: GalleryScreenProps) {
   const [myLikeIds, setMyLikeIds] = useState<Record<string, string>>({}); // dogMediaId -> MediaLike.id
   const [lightboxMedia, setLightboxMedia] = useState<{ mediaType: 'PHOTO' | 'VIDEO'; url: string } | null>(null);
 
+  useEffect(() => {
+    if (lightboxMedia) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [lightboxMedia]);
+
   async function toggleLike(mediaId: string) {
     const token = getOrCreateAnonToken();
     const session = await fetchAuthSession();

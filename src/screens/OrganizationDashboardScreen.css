@@ -350,3 +350,83 @@
   color: var(--text);
   white-space: pre-wrap;
 }
+
+/* チャットスレッド一覧・バッジ */
+.org-dashboard__chat-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.org-dashboard__chat-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.org-dashboard__chat-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.org-dashboard__chat-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-h);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.org-dashboard__unread-indicator {
+  font-size: 11px;
+  font-weight: 600;
+  color: #c1502e;
+  background: #fdf2f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.org-dashboard__chat-button {
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.org-dashboard__chat-button:hover {
+  opacity: 0.9;
+}
+
+.org-dashboard__dog-badge {
+  display: inline-block;
+  margin-left: 8px;
+  background: #c1502e;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.org-dashboard__section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 32px 0 16px;
+}
+
+.org-dashboard__section-title-row h2 {
+  margin: 0;
+}

@@ -1,0 +1,175 @@
+import { getCurrentUser } from 'aws-amplify/auth';
+import { Hub } from 'aws-amplify/utils';
+import { useCallback, useEffect, useState } from 'react';
+import { dataClient } from '../lib/dataClient';
+
+const POLL_INTERVAL_MS = 6000;
+
+export interface ChatThreadItem {
+  id: string;
+  participantAKey: string;
+  participantAName: string;
+  participantBKey: string;
+  participantBName: string;
+  owners: string[];
+}
+
+export interface DashboardBadges {
+  total: number;
+  pendingAffiliations: number;
+  pendingMatchOffers: number;
+  transitDogs: number;
+  unreadChats: number;
+  chatUnreads: Record<string, number>; // threadId -> 未読数(0 or 1)
+  chatThreads: ChatThreadItem[]; // 自分が参加しているスレッドのリスト(表示用)
+}
+
+const INITIAL_STATE: DashboardBadges = {
+  total: 0,
+  pendingAffiliations: 0,
+  pendingMatchOffers: 0,
+  transitDogs: 0,
+  unreadChats: 0,
+  chatUnreads: {},
+  chatThreads: [],
+};
+
+export function useDashboardBadges(
+  organizationId: string | null | undefined,
+  volunteerId: string | null | undefined,
+  activeChatThreadId: string | null
+): [DashboardBadges, () => Promise<void>] {
+  const [badges, setBadges] = useState<DashboardBadges>(INITIAL_STATE);
+
+  const load = useCallback(async () => {
+    const isLoggedIn = !!organizationId || !!volunteerId;
+    if (!isLoggedIn) {
+      setBadges(INITIAL_STATE);
+      return;
+    }
+
+    try {
+      let pendingAffiliations = 0;
+      let pendingMatchOffers = 0;
+      let transitDogs = 0;
+      let unreadChats = 0;
+      const chatUnreads: Record<string, number> = {};
+      let chatThreads: ChatThreadItem[] = [];
+
+      // 1. 団体側のデータ取得
+      if (organizationId) {
+        // 承認待ちの所属申請
+        const affResult = await dataClient.models.Affiliation.listByOrganizationAndStatus(
+          { organizationId, status: { eq: 'PENDING' } },
+          { authMode: 'userPool' }
+        );
+        pendingAffiliations = affResult.data.length;
+
+        // 保留中の預かり申し出 (Match.list は自分に関係するものだけを返す認可ルール)
+        const matchResult = await dataClient.models.Match.list({ authMode: 'userPool' });
+        pendingMatchOffers = matchResult.data.filter(
+          (match) => match.status === 'REQUESTED' || match.status === 'NEGOTIATING'
+        ).length;
+      }
+
+      // 2. ボランティア側のデータ取得
+      if (volunteerId) {
+        const { userId, username } = await getCurrentUser();
+        const myOwnerSub = `${userId}::${username}`;
+
+        // 搬送中の保護犬 (IN_TRANSIT)
+        const dogResult = await dataClient.models.Dog.listDogsByCustodian(
+          { custodianOwnerSub: myOwnerSub },
+          { authMode: 'userPool' }
+        );
+        transitDogs = dogResult.data.filter((dog) => dog.status === 'IN_TRANSIT').length;
+      }
+
+      // 3. チャット未読のデータ取得
+      const myKey = organizationId ? `organization#${organizationId}` : `volunteer#${volunteerId}`;
+      const [threadsA, threadsB] = await Promise.all([
+        dataClient.models.ChatThread.listThreadsByParticipantA({ participantAKey: myKey }, { authMode: 'userPool' }),
+        dataClient.models.ChatThread.listThreadsByParticipantB({ participantBKey: myKey }, { authMode: 'userPool' }),
+      ]);
+
+      const rawThreads = [...threadsA.data, ...threadsB.data];
+      const allThreads: ChatThreadItem[] = rawThreads.map((thread) => ({
+        id: thread.id,
+        participantAKey: thread.participantAKey,
+        participantAName: thread.participantAName,
+        participantBKey: thread.participantBKey,
+        participantBName: thread.participantBName,
+        owners: thread.owners ?? [],
+      }));
+      chatThreads = allThreads;
+
+      const chatPromises = allThreads.map(async (thread) => {
+        const lastReadStr = localStorage.getItem(`chat_last_read_at:${thread.id}`) || '0';
+        const lastReadTime = new Date(lastReadStr).getTime();
+
+        if (thread.id === activeChatThreadId) {
+          chatUnreads[thread.id] = 0;
+          return;
+        }
+
+        // 各スレッドの最新メッセージを1件だけ取得
+        const msgResult = await dataClient.models.ChatMessage.listMessagesByThread(
+          { threadId: thread.id },
+          { limit: 1, sortDirection: 'DESC', authMode: 'userPool' }
+        );
+        const lastMsg = msgResult.data[0];
+        if (lastMsg && lastMsg.senderKey !== myKey) {
+          const msgTime = new Date(lastMsg.createdAt ?? '').getTime();
+          if (msgTime > lastReadTime) {
+            chatUnreads[thread.id] = 1;
+            unreadChats += 1;
+            return;
+          }
+        }
+        chatUnreads[thread.id] = 0;
+      });
+
+      await Promise.all(chatPromises);
+
+      const total = pendingAffiliations + pendingMatchOffers + transitDogs + unreadChats;
+
+      setBadges({
+        total,
+        pendingAffiliations,
+        pendingMatchOffers,
+        transitDogs,
+        unreadChats,
+        chatUnreads,
+        chatThreads,
+      });
+    } catch (err) {
+      console.error('Failed to load dashboard badges', err);
+    }
+  }, [organizationId, volunteerId, activeChatThreadId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function safeLoad() {
+      if (!cancelled) await load();
+    }
+
+    safeLoad();
+    const interval = setInterval(safeLoad, POLL_INTERVAL_MS);
+
+    const unsubscribe = Hub.listen('auth', ({ payload }) => {
+      if (payload.event === 'signedIn') safeLoad();
+      if (payload.event === 'signedOut') {
+        setBadges(INITIAL_STATE);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      unsubscribe();
+    };
+  }, [load]);
+
+  return [badges, load];
+}
