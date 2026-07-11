@@ -313,9 +313,9 @@ export function GalleryScreen({ onSelectDog, onBack }: GalleryScreenProps) {
                 : undefined;
               const organization = registeredOrganizations.find((o) => o.id === dog.organizationId);
 
-              const wishlistUrl = (dog.status === 'FOSTERED' && fosterVolunteer?.wishlistUrl)
-                ? fosterVolunteer.wishlistUrl
-                : organization?.wishlistUrl;
+              const wishlistUrl = dog.status === 'FOSTERED'
+                ? (fosterVolunteer?.wishlistUrl || undefined)
+                : (organization?.wishlistUrl || undefined);
 
               return (
                 <article key={item.id} className="media-card">

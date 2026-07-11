@@ -606,6 +606,7 @@ export function VolunteerDashboardScreen({
                 <dt>所在地</dt>
                 <dd>
                   {volunteer.prefecture} {volunteer.city}
+                  <small className="volunteer-dashboard__facts-hint">※マップ上で右クリック/長押しするとピンの位置を調整できます</small>
                 </dd>
               </div>
               <div>
@@ -613,7 +614,7 @@ export function VolunteerDashboardScreen({
                 <dd className="volunteer-dashboard__intro">{volunteer.profileIntroduction}</dd>
               </div>
               <div>
-                <dt>ほしいものリストURL</dt>
+                <dt>AmazonほしいものリストURL</dt>
                 <dd>
                   {volunteer.wishlistUrl ? (
                     <a href={volunteer.wishlistUrl} target="_blank" rel="noreferrer">

@@ -510,7 +510,7 @@ export function OrganizationDashboardScreen({
               </label>
             </div>
             <label className="org-dashboard__field">
-              <span>ほしいものリストURL(任意)</span>
+              <span>AmazonほしいものリストURL(任意)</span>
               <input
                 type="url"
                 value={orgForm.wishlistUrl}
@@ -557,6 +557,7 @@ export function OrganizationDashboardScreen({
                 <dt>所在地</dt>
                 <dd>
                   {organization.prefecture} {organization.city} {organization.addressLine}
+                  <small className="org-dashboard__facts-hint">※マップ上で右クリック/長押しするとピンの位置を調整できます</small>
                 </dd>
               </div>
               <div>
@@ -568,7 +569,7 @@ export function OrganizationDashboardScreen({
                 <dd>{organization.contactPhone || '未設定'}</dd>
               </div>
               <div>
-                <dt>ほしいものリストURL</dt>
+                <dt>AmazonほしいものリストURL</dt>
                 <dd>
                   {organization.wishlistUrl ? (
                     <a href={organization.wishlistUrl} target="_blank" rel="noreferrer">
@@ -677,7 +678,7 @@ export function OrganizationDashboardScreen({
                           </div>
                         </div>
                         <p className="org-dashboard__affiliation-meta">
-                           {request.volunteerPrefecture} {request.volunteerCity}
+                          {request.volunteerPrefecture} {request.volunteerCity}
                         </p>
                         {request.requestMessage && (
                           <p className="org-dashboard__affiliation-message">{request.requestMessage}</p>

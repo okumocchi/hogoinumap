@@ -71,9 +71,16 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
     ? registeredVolunteers.find((v) => v.ownerSub === dog.custodianOwnerSub)
     : undefined;
 
-  const dogWishlistUrl = (dog?.status === 'FOSTERED' && fosterVolunteer?.wishlistUrl)
-    ? fosterVolunteer.wishlistUrl
-    : organization?.wishlistUrl;
+  const dogWishlistUrl = dog?.status === 'FOSTERED'
+    ? (fosterVolunteer?.wishlistUrl || undefined)
+    : (organization?.wishlistUrl || undefined);
+
+  const displayPref = (dog?.status === 'FOSTERED' && fosterVolunteer)
+    ? fosterVolunteer.prefecture
+    : dog?.prefecture;
+  const displayCity = (dog?.status === 'FOSTERED' && fosterVolunteer)
+    ? fosterVolunteer.city
+    : dog?.city;
 
   useEffect(() => {
     let cancelled = false;
@@ -653,7 +660,7 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
             <div>
               <dt>現在の保護場所</dt>
               <dd>
-                {dog.prefecture} {dog.city}
+                {displayPref} {displayCity}
               </dd>
             </div>
             {organization && (

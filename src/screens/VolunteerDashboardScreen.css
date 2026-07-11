@@ -98,7 +98,7 @@
 .volunteer-dashboard__intro {
   font-weight: 400 !important;
   white-space: pre-wrap;
-  line-height: 1.6;
+  line-height: 1.4;
 }
 
 .volunteer-dashboard__form {
@@ -501,4 +501,13 @@
   padding: 2px 8px;
   border-radius: 999px;
   vertical-align: middle;
+}
+
+.volunteer-dashboard__facts-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text);
+  font-weight: normal;
+  opacity: 0.8;
 }

@@ -5,6 +5,7 @@ import { SecondaryHeader } from '../components/SecondaryHeader';
 import { Badge } from '../components/Badge';
 import { useRegisteredDogs } from '../hooks/useRegisteredDogs';
 import { useRegisteredOrganizations } from '../hooks/useRegisteredOrganizations';
+import { useRegisteredVolunteers } from '../hooks/useRegisteredVolunteers';
 import { dataClient } from '../lib/dataClient';
 import type { Dog } from '../types/models';
 import { calculateAgeLabel, genderLabel, isDogOpenForFosterOffers } from '../utils/dog';
@@ -21,6 +22,7 @@ export function DogListScreen({
 }: DogListScreenProps) {
   const registeredDogs = useRegisteredDogs();
   const registeredOrganizations = useRegisteredOrganizations();
+  const registeredVolunteers = useRegisteredVolunteers();
 
   const allDogs = registeredDogs;
   const allOrganizations = registeredOrganizations;
@@ -119,6 +121,12 @@ export function DogListScreen({
       <div className="dog-list-screen__body">
         {dogs.map((dog) => {
           const organization = allOrganizations.find((org) => org.id === dog.organizationId);
+          const fosterVol = dog.custodianOwnerSub
+            ? registeredVolunteers.find((v) => v.ownerSub === dog.custodianOwnerSub)
+            : undefined;
+
+          const displayPref = (dog.status === 'FOSTERED' && fosterVol) ? fosterVol.prefecture : dog.prefecture;
+          const displayCity = (dog.status === 'FOSTERED' && fosterVol) ? fosterVol.city : dog.city;
 
           const latestMedia = registeredMedia[dog.id];
 
@@ -151,7 +159,7 @@ export function DogListScreen({
                 </div>
                 <p className="dog-list-card__meta">
                   {genderLabel[dog.gender]} ・ {calculateAgeLabel(dog.birthDate, dog.birthDateEstimated)} ・{' '}
-                  {dog.prefecture} {dog.city}
+                  {displayPref} {displayCity}
                 </p>
                 <p className="dog-list-card__personality">{dog.personality}</p>
                 {organization && <p className="dog-list-card__org">{organization.name}</p>}
