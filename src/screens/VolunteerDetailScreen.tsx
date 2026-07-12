@@ -62,17 +62,12 @@ interface VolunteerDetailScreenProps {
   onStartChat: (other: ChatParticipant) => Promise<void>;
 }
 
-export function VolunteerDetailScreen({
-  volunteerId,
-  onBack,
-  onSelectDog,
-  viewerParticipant,
-  onStartChat,
-}: VolunteerDetailScreenProps) {
+export function VolunteerDetailScreen(props: VolunteerDetailScreenProps) {
+  const { volunteerId, onBack, onSelectDog } = props;
   const registeredVolunteers = useRegisteredVolunteers();
   const allVolunteers: Volunteer[] = registeredVolunteers;
   const volunteer = allVolunteers.find((v) => v.id === volunteerId);
-  const isRegisteredVolunteer = registeredVolunteers.some((v) => v.id === volunteerId);
+  // const isRegisteredVolunteer = registeredVolunteers.some((v) => v.id === volunteerId);
 
   const [slots, setSlots] = useState<FosteringSlotInfo[]>([]);
   const [slotOccupants, setSlotOccupants] = useState<Record<string, SlotOccupant>>({});
@@ -148,30 +143,35 @@ export function VolunteerDetailScreen({
     };
   }, [volunteerId]);
 
-  const canChatWithVolunteer =
-    !!viewerParticipant &&
-    isRegisteredVolunteer &&
-    !(viewerParticipant.kind === 'volunteer' && viewerParticipant.id === volunteerId);
-  const [chatStarting, setChatStarting] = useState(false);
-  const [chatButtonError, setChatButtonError] = useState<string | null>(null);
+  // const canChatWithVolunteer =
+  //   !!viewerParticipant &&
+  //   isRegisteredVolunteer &&
+  //   !(viewerParticipant.kind === 'volunteer' && viewerParticipant.id === volunteerId);
+  // const [chatStarting, setChatStarting] = useState(false);
+  // const [chatButtonError, setChatButtonError] = useState<string | null>(null);
 
-  async function handleStartChatButton() {
-    if (!volunteer) return;
-    setChatStarting(true);
-    setChatButtonError(null);
-    try {
-      const volunteerResult = await dataClient.models.Volunteer.get({ id: volunteerId }, { authMode: 'userPool' });
-      const ownerSub = volunteerResult.data?.ownerSub;
-      if (!ownerSub) {
-        throw new Error('このボランティアとはチャットを開始できません。');
-      }
-      await onStartChat({ kind: 'volunteer', id: volunteerId, name: volunteer.handleName, ownerSub });
-    } catch (err) {
-      setChatButtonError(err instanceof Error ? err.message : 'チャットの開始に失敗しました。');
-    } finally {
-      setChatStarting(false);
-    }
-  }
+  // async function handleStartChatButton() {
+  //   if (!volunteer) return;
+  //   setChatStarting(true);
+  //   setChatButtonError(null);
+  //   try {
+  //     let ownerSub = volunteer.ownerSub;
+  //     if (!ownerSub) {
+  //       const session = await fetchAuthSession();
+  //       const authMode = session.tokens ? 'userPool' : 'identityPool';
+  //       const volunteerResult = await dataClient.models.Volunteer.get({ id: volunteerId }, { authMode });
+  //       ownerSub = volunteerResult.data?.ownerSub ?? undefined;
+  //     }
+  //     if (!ownerSub) {
+  //       throw new Error('このボランティアとはチャットを開始できません。');
+  //     }
+  //     await onStartChat({ kind: 'volunteer', id: volunteerId, name: volunteer.handleName, ownerSub });
+  //   } catch (err) {
+  //     setChatButtonError(err instanceof Error ? err.message : 'チャットの開始に失敗しました。');
+  //   } finally {
+  //     setChatStarting(false);
+  //   }
+  // }
 
   if (!volunteer) {
     return (
@@ -200,7 +200,7 @@ export function VolunteerDetailScreen({
             ほしいものリストを見る ↗
           </a>
         )}
-        {canChatWithVolunteer && (
+        {/* {canChatWithVolunteer && (
           <div className="organization-detail__chat-action">
             <button
               type="button"
@@ -212,7 +212,7 @@ export function VolunteerDetailScreen({
             </button>
             {chatButtonError && <p className="organization-detail__error">{chatButtonError}</p>}
           </div>
-        )}
+        )} */}
 
         <div className="volunteer-detail__slots-section">
           <h2 className="organization-detail__section-title">預かりスロット</h2>

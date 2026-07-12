@@ -21,6 +21,8 @@ interface OrganizationDashboardScreenProps {
   chatThreads: ChatThreadItem[];
   chatUnreads: Record<string, number>;
   pendingMatchOffers: number;
+  onStartGroupChat: (orgId: string, orgName: string) => Promise<void>;
+  groupChatUnreads: Record<string, number>;
 }
 
 interface OrgInfoFormState {
@@ -115,6 +117,8 @@ export function OrganizationDashboardScreen({
   chatThreads,
   chatUnreads,
   pendingMatchOffers,
+  onStartGroupChat,
+  groupChatUnreads,
 }: OrganizationDashboardScreenProps) {
   const [mode, setMode] = useState<Mode>({ screen: 'list' });
   const [dogs, setDogs] = useState<Dog[]>([]);
@@ -599,44 +603,68 @@ export function OrganizationDashboardScreen({
         {!editingOrgInfo && mode.screen === 'list' && (
           <>
             <section className="org-dashboard__section">
-              <h2>
-                メッセージ
-                {chatThreads.some((t) => (chatUnreads[t.id] ?? 0) > 0) && (
-                  <span className="org-dashboard__section-badge">
-                    {chatThreads.filter((t) => (chatUnreads[t.id] ?? 0) > 0).length}
-                  </span>
-                )}
-              </h2>
-              {chatThreads.length === 0 ? (
-                <p className="org-dashboard__empty">やり取りしているメッセージはありません。</p>
-              ) : (
-                <ul className="org-dashboard__chat-list">
-                  {chatThreads.map((thread) => {
-                    const myKey = `organization#${organization.id}`;
-                    const counterpartName =
-                      thread.participantAKey === myKey ? thread.participantBName : thread.participantAName;
-                    const hasUnread = (chatUnreads[thread.id] ?? 0) > 0;
+              {(() => {
+                const groupChatUnreadCount = (groupChatUnreads[organization.id] ?? 0) > 0 ? 1 : 0;
+                const unreadOneOnOneCount = chatThreads.filter((t) => (chatUnreads[t.id] ?? 0) > 0).length;
+                const totalUnreadCount = unreadOneOnOneCount + groupChatUnreadCount;
+                const hasGroupUnread = groupChatUnreadCount > 0;
 
-                    return (
-                      <li key={thread.id} className="org-dashboard__chat-card">
+                return (
+                  <>
+                    <h2>
+                      メッセージ
+                      {totalUnreadCount > 0 && (
+                        <span className="org-dashboard__section-badge">
+                          {totalUnreadCount}
+                        </span>
+                      )}
+                    </h2>
+                    <ul className="org-dashboard__chat-list">
+                      {/* グループチャットカードを最上部に常時配置 */}
+                      <li key={`group-${organization.id}`} className="org-dashboard__chat-card org-dashboard__chat-card--group">
                         <div className="org-dashboard__chat-info">
                           <span className="org-dashboard__chat-name">
-                            {counterpartName}
-                            {hasUnread && <span className="org-dashboard__unread-indicator">🔴 未読あり</span>}
+                            📢 グループチャット (登録ボランティア全員と)
+                            {hasGroupUnread && <span className="org-dashboard__unread-indicator">🔴 未読あり</span>}
                           </span>
                           <button
                             type="button"
                             className="org-dashboard__chat-button"
-                            onClick={() => onOpenChatThread(thread.id, counterpartName, thread.owners)}
+                            onClick={() => onStartGroupChat(organization.id, organization.name)}
                           >
-                            チャットを開く
+                            グループチャットを開く
                           </button>
                         </div>
                       </li>
-                    );
-                  })}
-                </ul>
-              )}
+
+                      {chatThreads.map((thread) => {
+                        const myKey = `organization#${organization.id}`;
+                        const counterpartName =
+                          thread.participantAKey === myKey ? thread.participantBName : thread.participantAName;
+                        const hasUnread = (chatUnreads[thread.id] ?? 0) > 0;
+
+                        return (
+                          <li key={thread.id} className="org-dashboard__chat-card">
+                            <div className="org-dashboard__chat-info">
+                              <span className="org-dashboard__chat-name">
+                                {counterpartName}
+                                {hasUnread && <span className="org-dashboard__unread-indicator">🔴 未読あり</span>}
+                              </span>
+                              <button
+                                type="button"
+                                className="org-dashboard__chat-button"
+                                onClick={() => onOpenChatThread(thread.id, counterpartName, thread.owners)}
+                              >
+                                チャットを開く
+                              </button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
+                );
+              })()}
             </section>
 
             <section className="org-dashboard__section">

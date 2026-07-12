@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { dataClient } from '../lib/dataClient';
 import './ChatWindow.css';
 
-interface ChatMessageItem {
+interface GroupChatMessageItem {
   id: string;
   senderKey: string;
   senderName: string;
@@ -10,28 +10,26 @@ interface ChatMessageItem {
   createdAt: string;
 }
 
-export interface ChatWindowProps {
-  threadId: string;
-  owners: string[];
+export interface GroupChatWindowProps {
+  threadId: string; // organizationId
   myKey: string;
   myName: string;
-  counterpartName: string;
+  organizationName: string;
   onClose: () => void;
 }
 
-// メッセージはWebSocket購読ではなく簡易ポーリングで反映する(このアプリの他機能と同様の方式)
 const POLL_INTERVAL_MS = 4000;
 
-export function ChatWindow({ threadId, owners, myKey, myName, counterpartName, onClose }: ChatWindowProps) {
-  const [messages, setMessages] = useState<ChatMessageItem[]>([]);
+export function GroupChatWindow({ threadId, myKey, myName, organizationName, onClose }: GroupChatWindowProps) {
+  const [messages, setMessages] = useState<GroupChatMessageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  async function fetchMessages(): Promise<ChatMessageItem[]> {
-    const result = await dataClient.models.ChatMessage.listMessagesByThread(
+  async function fetchMessages(): Promise<GroupChatMessageItem[]> {
+    const result = await dataClient.models.GroupChatMessage.listGroupMessagesByThread(
       { threadId },
       { sortDirection: 'ASC', authMode: 'userPool' },
     );
@@ -62,7 +60,6 @@ export function ChatWindow({ threadId, owners, myKey, myName, counterpartName, o
       cancelled = true;
       clearInterval(interval);
     };
-    // threadIdはprops経由で決まっており、開いている間に変わることは想定していない
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId]);
 
@@ -77,10 +74,9 @@ export function ChatWindow({ threadId, owners, myKey, myName, counterpartName, o
     setSending(true);
     setError(null);
     try {
-      const messageInput = { threadId, senderKey: myKey, senderName: myName, body, owners };
-      // Organization/Dog登録と同様、data-schemaの型推論バグを回避するためas anyを使用
+      const messageInput = { threadId, senderKey: myKey, senderName: myName, body };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await dataClient.models.ChatMessage.create(messageInput as any);
+      const result = await dataClient.models.GroupChatMessage.create(messageInput as any);
       if (result.errors?.length) {
         throw new Error(result.errors.map((e) => e.message).join(' / '));
       }
@@ -96,7 +92,7 @@ export function ChatWindow({ threadId, owners, myKey, myName, counterpartName, o
   return (
     <div className="chat-window">
       <header className="chat-window__header">
-        <span className="chat-window__title">{counterpartName}</span>
+        <span className="chat-window__title">{organizationName} グループチャット</span>
         <button type="button" className="chat-window__close" onClick={onClose} aria-label="閉じる">
           ×
         </button>
@@ -108,24 +104,30 @@ export function ChatWindow({ threadId, owners, myKey, myName, counterpartName, o
         ) : messages.length === 0 ? (
           <p className="chat-window__empty">まだメッセージはありません</p>
         ) : (
-          messages.map((message) => (
-            <div
-              key={message.id}
-              className={`chat-window__bubble-row ${message.senderKey === myKey ? 'chat-window__bubble-row--mine' : ''}`}
-            >
-              <div className="chat-window__bubble">
-                <p className="chat-window__bubble-body">{message.body}</p>
-                <span className="chat-window__bubble-time">
-                  {new Date(message.createdAt).toLocaleString('ja-JP', {
-                    month: 'numeric',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
+          messages.map((message) => {
+            const isMine = message.senderKey === myKey;
+            return (
+              <div
+                key={message.id}
+                className={`chat-window__bubble-row ${isMine ? 'chat-window__bubble-row--mine' : ''} chat-window__bubble-row--group`}
+              >
+                {!isMine && (
+                  <span className="chat-window__sender-name">{message.senderName}</span>
+                )}
+                <div className="chat-window__bubble">
+                  <p className="chat-window__bubble-body">{message.body}</p>
+                  <span className="chat-window__bubble-time">
+                    {new Date(message.createdAt).toLocaleString('ja-JP', {
+                      month: 'numeric',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -151,7 +153,11 @@ export function ChatWindow({ threadId, owners, myKey, myName, counterpartName, o
           }}
           placeholder="メッセージを入力"
         />
-        <button type="submit" className="chat-window__send" disabled={sending || !draft.trim()}>
+        <button
+          type="submit"
+          className="chat-window__send"
+          disabled={!draft.trim() || sending}
+        >
           送信
         </button>
       </form>

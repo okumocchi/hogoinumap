@@ -23,6 +23,7 @@ interface OrganizationDetailScreenProps {
   onSelectDog: (dogId: string) => void;
   viewerParticipant: { kind: ChatParticipantKind; id: string } | null;
   onStartChat: (other: ChatParticipant) => Promise<void>;
+  onStartGroupChat: (orgId: string, orgName: string) => Promise<void>;
 }
 
 interface FosteringSlotCondition {
@@ -44,6 +45,7 @@ export function OrganizationDetailScreen({
   onSelectDog,
   viewerParticipant,
   onStartChat,
+  onStartGroupChat,
 }: OrganizationDetailScreenProps) {
   const registeredOrganizations = useRegisteredOrganizations();
   const allOrganizations: Organization[] = registeredOrganizations;
@@ -245,6 +247,23 @@ export function OrganizationDetailScreen({
   const [chatStarting, setChatStarting] = useState(false);
   const [chatButtonError, setChatButtonError] = useState<string | null>(null);
 
+  const canJoinGroupChat = !!viewerParticipant && isApprovedVolunteer;
+  const [groupChatStarting, setGroupChatStarting] = useState(false);
+  const [groupChatError, setGroupChatError] = useState<string | null>(null);
+
+  async function handleStartGroupChatButton() {
+    if (!organization) return;
+    setGroupChatStarting(true);
+    setGroupChatError(null);
+    try {
+      await onStartGroupChat(organizationId, organization.name);
+    } catch (err) {
+      setGroupChatError(err instanceof Error ? err.message : 'グループチャットの開始に失敗しました。');
+    } finally {
+      setGroupChatStarting(false);
+    }
+  }
+
   async function handleStartChatButton() {
     if (!organization) return;
     setChatStarting(true);
@@ -338,9 +357,22 @@ export function OrganizationDetailScreen({
               onClick={handleStartChatButton}
               disabled={chatStarting}
             >
-              {chatStarting ? '開始しています…' : 'チャットを始める'}
+              {chatStarting ? '開始しています…' : 'チャットを開始'}
             </button>
             {chatButtonError && <p className="organization-detail__error">{chatButtonError}</p>}
+          </div>
+        )}
+        {canJoinGroupChat && (
+          <div className="organization-detail__chat-action" style={{ marginTop: '12px' }}>
+            <button
+              type="button"
+              className="organization-detail__chat-button organization-detail__chat-button--group"
+              onClick={handleStartGroupChatButton}
+              disabled={groupChatStarting}
+            >
+              {groupChatStarting ? '開始しています…' : 'グループチャットを開始'}
+            </button>
+            {groupChatError && <p className="organization-detail__error">{groupChatError}</p>}
           </div>
         )}
 

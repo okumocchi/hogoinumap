@@ -1,11 +1,12 @@
 import { getCurrentUser, signOut } from 'aws-amplify/auth';
 import { type ReactNode, useEffect, useState } from 'react';
 import { ChatWindow } from './components/ChatWindow';
+import { GroupChatWindow } from './components/GroupChatWindow';
 import { useCurrentUser } from './hooks/useCurrentUser';
 import { useMyOrganization } from './hooks/useMyOrganization';
 import { useMyVolunteer } from './hooks/useMyVolunteer';
 import { useDashboardBadges } from './hooks/useDashboardBadges';
-import { type ChatParticipant, chatParticipantKey, findOrCreateChatThread } from './lib/chat';
+import { type ChatParticipant, chatParticipantKey, findOrCreateChatThread, findOrCreateGroupChatThread } from './lib/chat';
 import { DogDetailScreen } from './screens/DogDetailScreen';
 import { DogListScreen } from './screens/DogListScreen';
 import { GalleryScreen } from './screens/GalleryScreen';
@@ -25,13 +26,13 @@ type Route =
   | { screen: 'map' }
   | { screen: 'dog-list' }
   | { screen: 'gallery' }
-  | { screen: 'dog-detail'; dogId: string; from: FromScreen }
+  | { screen: 'dog-detail'; dogId: string; from: FromScreen | 'volunteer-dashboard' }
   | {
       screen: 'organization-detail';
       organizationId: string;
-      from: FromScreen;
+      from: FromScreen | 'volunteer-dashboard';
       fromDogId?: string;
-      fromDogFrom?: FromScreen;
+      fromDogFrom?: FromScreen | 'volunteer-dashboard';
     }
   | { screen: 'volunteer-detail'; volunteerId: string; from: FromScreen }
   | { screen: 'login'; from: FromScreen }
@@ -43,10 +44,11 @@ type Route =
 
 interface ActiveChat {
   threadId: string;
-  owners: string[];
+  owners?: string[];
   myKey: string;
   myName: string;
   counterpartName: string;
+  isGroup?: boolean;
 }
 
 function App() {
@@ -67,7 +69,11 @@ function App() {
     if (!activeChat) return;
 
     function markAsRead() {
-      localStorage.setItem(`chat_last_read_at:${activeChat!.threadId}`, new Date().toISOString());
+      if (activeChat!.isGroup) {
+        localStorage.setItem(`group_chat_last_read_at:${activeChat!.threadId}`, new Date().toISOString());
+      } else {
+        localStorage.setItem(`chat_last_read_at:${activeChat!.threadId}`, new Date().toISOString());
+      }
       void refetchBadges();
     }
 
@@ -132,13 +138,37 @@ function App() {
     });
   }
 
+  async function handleStartGroupChat(orgId: string, orgName: string) {
+    const me: Omit<ChatParticipant, 'ownerSub'> | null = myOrganization
+      ? { kind: 'organization', id: myOrganization.id, name: myOrganization.name }
+      : myVolunteer
+        ? { kind: 'volunteer', id: myVolunteer.id, name: myVolunteer.handleName }
+        : null;
+    if (!me) return;
+
+    const thread = await findOrCreateGroupChatThread(orgId, orgName);
+    setActiveChat({
+      threadId: thread.id,
+      myKey: chatParticipantKey(me.kind, me.id),
+      myName: me.name,
+      counterpartName: thread.organizationName,
+      isGroup: true,
+    });
+  }
+
   let screen: ReactNode;
 
   if (route.screen === 'dog-detail') {
     screen = (
       <DogDetailScreen
         dogId={route.dogId}
-        onBack={() => setRoute({ screen: route.from })}
+        onBack={() => {
+          if (route.from === 'volunteer-dashboard') {
+            setRoute({ screen: 'volunteer-dashboard', from: 'map' });
+          } else {
+            setRoute({ screen: route.from });
+          }
+        }}
         onSelectOrganization={(orgId) =>
           setRoute({
             screen: 'organization-detail',
@@ -161,6 +191,8 @@ function App() {
               dogId: route.fromDogId,
               from: route.fromDogFrom || 'map',
             });
+          } else if (route.from === 'volunteer-dashboard') {
+            setRoute({ screen: 'volunteer-dashboard', from: 'map' });
           } else {
             setRoute({ screen: route.from });
           }
@@ -168,6 +200,7 @@ function App() {
         onSelectDog={(dogId) => setRoute({ screen: 'dog-detail', dogId, from: route.from })}
         viewerParticipant={viewerParticipant}
         onStartChat={handleStartChat}
+        onStartGroupChat={handleStartGroupChat}
       />
     );
   } else if (route.screen === 'volunteer-detail') {
@@ -229,6 +262,8 @@ function App() {
         chatThreads={badges.chatThreads}
         chatUnreads={badges.chatUnreads}
         pendingMatchOffers={badges.pendingMatchOffers}
+        onStartGroupChat={handleStartGroupChat}
+        groupChatUnreads={badges.groupChatUnreads}
       />
     ) : null;
   } else if (route.screen === 'volunteer-dashboard') {
@@ -244,6 +279,11 @@ function App() {
         onOpenChatThread={handleOpenChatThread}
         chatThreads={badges.chatThreads}
         chatUnreads={badges.chatUnreads}
+        onSelectOrganization={(orgId) =>
+          setRoute({ screen: 'organization-detail', organizationId: orgId, from: 'volunteer-dashboard' })
+        }
+        onStartGroupChat={handleStartGroupChat}
+        groupChatUnreads={badges.groupChatUnreads}
       />
     ) : null;
   } else if (route.screen === 'dog-list') {
@@ -300,14 +340,24 @@ function App() {
     <>
       {screen}
       {activeChat && (
-        <ChatWindow
-          threadId={activeChat.threadId}
-          owners={activeChat.owners}
-          myKey={activeChat.myKey}
-          myName={activeChat.myName}
-          counterpartName={activeChat.counterpartName}
-          onClose={() => setActiveChat(null)}
-        />
+        activeChat.isGroup ? (
+          <GroupChatWindow
+            threadId={activeChat.threadId}
+            myKey={activeChat.myKey}
+            myName={activeChat.myName}
+            organizationName={activeChat.counterpartName}
+            onClose={() => setActiveChat(null)}
+          />
+        ) : (
+          <ChatWindow
+            threadId={activeChat.threadId}
+            owners={activeChat.owners ?? []}
+            myKey={activeChat.myKey}
+            myName={activeChat.myName}
+            counterpartName={activeChat.counterpartName}
+            onClose={() => setActiveChat(null)}
+          />
+        )
       )}
     </>
   );

@@ -353,6 +353,34 @@ const schema = a.schema({
       index('threadId').sortKeys(['createdAt']).queryField('listMessagesByThread'),
     ]),
 
+  GroupChatThread: a
+    .model({
+      organizationId: a.id().required(),
+      organizationName: a.string().required(),
+      messages: a.hasMany('GroupChatMessage', 'threadId'),
+    })
+    .authorization((allow) => [
+      allow.authenticated().to(['read', 'create', 'update']),
+    ]),
+
+  GroupChatMessage: a
+    .model({
+      threadId: a.id().required(),
+      thread: a.belongsTo('GroupChatThread', 'threadId'),
+
+      senderKey: a.string().required(), // 例: "organization#xxxx" | "volunteer#xxxx"
+      senderName: a.string().required(),
+      body: a.string().required(),
+
+      createdAt: a.datetime(),
+    })
+    .authorization((allow) => [
+      allow.authenticated().to(['read', 'create']),
+    ])
+    .secondaryIndexes((index) => [
+      index('threadId').sortKeys(['createdAt']).queryField('listGroupMessagesByThread'),
+    ]),
+
   // ── いいね(登録不要の支援者向け、写真・動画単位) ──────
   MediaLike: a
     .model({

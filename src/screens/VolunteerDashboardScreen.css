@@ -211,6 +211,17 @@
   background: var(--social-bg);
 }
 
+.volunteer-dashboard__org-card--clickable {
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+
+.volunteer-dashboard__org-card--clickable:hover {
+  background: var(--border);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
 .volunteer-dashboard__org-heading {
   display: flex;
   align-items: center;

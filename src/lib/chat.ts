@@ -56,3 +56,33 @@ export async function findOrCreateChatThread(me: ChatParticipant, other: ChatPar
 
   return { id: result.data.id, owners: threadInput.owners };
 }
+
+export interface GroupChatThreadRef {
+  id: string;
+  organizationName: string;
+}
+
+export async function findOrCreateGroupChatThread(
+  organizationId: string,
+  organizationName: string,
+): Promise<GroupChatThreadRef> {
+  const result = await dataClient.models.GroupChatThread.get({ id: organizationId }, { authMode: 'userPool' });
+  if (result.data) {
+    return { id: result.data.id, organizationName: result.data.organizationName };
+  }
+
+  // なければ作成
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const threadInput: any = {
+    id: organizationId,
+    organizationId,
+    organizationName,
+  };
+  const createResult = await dataClient.models.GroupChatThread.create(threadInput, { authMode: 'userPool' });
+
+  if (createResult.errors?.length || !createResult.data) {
+    throw new Error(createResult.errors?.map((e) => e.message).join(' / ') ?? 'グループチャットの開始に失敗しました。');
+  }
+
+  return { id: createResult.data.id, organizationName: createResult.data.organizationName };
+}

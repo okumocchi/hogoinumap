@@ -22,6 +22,8 @@ export interface DashboardBadges {
   unreadChats: number;
   chatUnreads: Record<string, number>; // threadId -> 未読数(0 or 1)
   chatThreads: ChatThreadItem[]; // 自分が参加しているスレッドのリスト(表示用)
+  unreadGroupChats: number;
+  groupChatUnreads: Record<string, number>; // orgId -> 未読数(0 or 1)
 }
 
 const INITIAL_STATE: DashboardBadges = {
@@ -32,6 +34,8 @@ const INITIAL_STATE: DashboardBadges = {
   unreadChats: 0,
   chatUnreads: {},
   chatThreads: [],
+  unreadGroupChats: 0,
+  groupChatUnreads: {},
 };
 
 export function useDashboardBadges(
@@ -55,6 +59,8 @@ export function useDashboardBadges(
       let unreadChats = 0;
       const chatUnreads: Record<string, number> = {};
       let chatThreads: ChatThreadItem[] = [];
+      let unreadGroupChats = 0;
+      const groupChatUnreads: Record<string, number> = {};
 
       // 1. 団体側のデータ取得
       if (organizationId) {
@@ -131,7 +137,52 @@ export function useDashboardBadges(
 
       await Promise.all(chatPromises);
 
-      const total = pendingAffiliations + pendingMatchOffers + transitDogs + unreadChats;
+      // 4. グループチャット未読のデータ取得
+      const groupChatOrgIds = new Set<string>();
+      if (organizationId) {
+        groupChatOrgIds.add(organizationId);
+      }
+      if (volunteerId) {
+        const affResult = await dataClient.models.Affiliation.list({ authMode: 'userPool' });
+        affResult.data
+          .filter((a) => a.volunteerId === volunteerId && a.status === 'APPROVED')
+          .forEach((a) => groupChatOrgIds.add(a.organizationId));
+      }
+
+      const groupPromises = Array.from(groupChatOrgIds).map(async (orgId) => {
+        const lastReadStr = localStorage.getItem(`group_chat_last_read_at:${orgId}`) || '0';
+        const lastReadTime = new Date(lastReadStr).getTime();
+
+        if (orgId === activeChatThreadId) {
+          groupChatUnreads[orgId] = 0;
+          return;
+        }
+
+        const threadRes = await dataClient.models.GroupChatThread.get({ id: orgId }, { authMode: 'userPool' });
+        if (!threadRes.data) {
+          groupChatUnreads[orgId] = 0;
+          return;
+        }
+
+        const msgResult = await dataClient.models.GroupChatMessage.listGroupMessagesByThread(
+          { threadId: orgId },
+          { limit: 1, sortDirection: 'DESC', authMode: 'userPool' }
+        );
+        const lastMsg = msgResult.data[0];
+        if (lastMsg && lastMsg.senderKey !== myKey) {
+          const msgTime = new Date(lastMsg.createdAt ?? '').getTime();
+          if (msgTime > lastReadTime) {
+            groupChatUnreads[orgId] = 1;
+            unreadGroupChats += 1;
+            return;
+          }
+        }
+        groupChatUnreads[orgId] = 0;
+      });
+
+      await Promise.all(groupPromises);
+
+      const total = pendingAffiliations + pendingMatchOffers + transitDogs + unreadChats + unreadGroupChats;
 
       setBadges({
         total,
@@ -141,6 +192,8 @@ export function useDashboardBadges(
         unreadChats,
         chatUnreads,
         chatThreads,
+        unreadGroupChats,
+        groupChatUnreads,
       });
     } catch (err) {
       console.error('Failed to load dashboard badges', err);
