@@ -2,7 +2,7 @@ import { getCurrentUser } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { dataClient } from '../lib/dataClient';
-import { sendWebNotification } from '../utils/webNotification';
+import { sendWebNotification, updateAppBadge } from '../utils/webNotification';
 
 const POLL_INTERVAL_MS = 6000;
 
@@ -52,6 +52,7 @@ export function useDashboardBadges(
     if (!isLoggedIn) {
       setBadges(INITIAL_STATE);
       prevBadgesRef.current = null;
+      void updateAppBadge(0);
       return;
     }
 
@@ -251,6 +252,7 @@ export function useDashboardBadges(
 
       prevBadgesRef.current = newBadges;
       setBadges(newBadges);
+      void updateAppBadge(newBadges.total);
     } catch (err) {
       console.error('Failed to load dashboard badges', err);
     }
@@ -271,6 +273,7 @@ export function useDashboardBadges(
       if (payload.event === 'signedOut') {
         prevBadgesRef.current = null;
         setBadges(INITIAL_STATE);
+        void updateAppBadge(0);
       }
     });
 

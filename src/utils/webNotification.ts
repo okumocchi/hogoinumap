@@ -72,3 +72,40 @@ export function sendWebNotification(title: string, options?: ShowNotificationOpt
     return null;
   }
 }
+
+/**
+ * ホーム画面アイコンの未読件数バッジ (App Badge API) を更新します。
+ * @param count 未読件数 (0 の場合はバッジを消去)
+ */
+export async function updateAppBadge(count: number): Promise<void> {
+  if (typeof navigator === 'undefined') return;
+
+  try {
+    if ('setAppBadge' in navigator && 'clearAppBadge' in navigator) {
+      if (count > 0) {
+        await (navigator as any).setAppBadge(count);
+      } else {
+        await (navigator as any).clearAppBadge();
+      }
+    }
+  } catch (error) {
+    console.error('Failed to update App Badge:', error);
+  }
+}
+
+/**
+ * Service Worker を登録します。
+ */
+export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+    return null;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    return registration;
+  } catch (error) {
+    console.error('Service Worker registration failed:', error);
+    return null;
+  }
+}
