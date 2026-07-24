@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import logoImg from '../assets/logo.png';
+import {
+  getNotificationPermission,
+  isWebNotificationEnabled,
+  requestNotificationPermission,
+  setWebNotificationEnabled,
+} from '../utils/webNotification';
 import './AppHeader.css';
 
 export type BrowseView = 'map' | 'list';
@@ -26,7 +32,14 @@ export function AppHeader({
   dashboardBadgeCount,
 }: AppHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default');
+  const [notificationEnabled, setNotificationEnabled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setPermission(getNotificationPermission());
+    setNotificationEnabled(isWebNotificationEnabled());
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -39,6 +52,18 @@ export function AppHeader({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  const handleRequestPermission = async () => {
+    const result = await requestNotificationPermission();
+    setPermission(result);
+    setNotificationEnabled(isWebNotificationEnabled());
+  };
+
+  const handleToggleNotification = () => {
+    const next = !notificationEnabled;
+    setWebNotificationEnabled(next);
+    setNotificationEnabled(next);
+  };
 
   return (
     <header className="app-header">
@@ -102,6 +127,35 @@ export function AppHeader({
           {menuOpen && (
             <div className="app-header__dropdown-menu">
               <div className="app-header__dropdown-email">{currentUserEmail}</div>
+              <div className="app-header__dropdown-section">
+                {permission === 'unsupported' ? (
+                  <div className="app-header__dropdown-text">WEB通知: 非対応ブラウザ</div>
+                ) : permission === 'denied' ? (
+                  <div className="app-header__dropdown-text app-header__dropdown-text--warning">
+                    WEB通知: ブラウザで拒否中
+                  </div>
+                ) : permission === 'default' ? (
+                  <button
+                    type="button"
+                    className="app-header__dropdown-item app-header__dropdown-item--action"
+                    onClick={handleRequestPermission}
+                  >
+                    <span>WEB通知を有効化</span>
+                    <span className="app-header__notification-badge">許可</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="app-header__dropdown-item"
+                    onClick={handleToggleNotification}
+                  >
+                    <span>WEB通知</span>
+                    <span className={`app-header__toggle-status ${notificationEnabled ? 'is-enabled' : ''}`}>
+                      {notificationEnabled ? 'ON' : 'OFF'}
+                    </span>
+                  </button>
+                )}
+              </div>
               <button
                 type="button"
                 className="app-header__dropdown-item app-header__dropdown-item--logout"

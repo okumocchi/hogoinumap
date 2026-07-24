@@ -1,7 +1,8 @@
 import { getCurrentUser } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { dataClient } from '../lib/dataClient';
+import { sendWebNotification } from '../utils/webNotification';
 
 const POLL_INTERVAL_MS = 6000;
 
@@ -44,11 +45,13 @@ export function useDashboardBadges(
   activeChatThreadId: string | null
 ): [DashboardBadges, () => Promise<void>] {
   const [badges, setBadges] = useState<DashboardBadges>(INITIAL_STATE);
+  const prevBadgesRef = useRef<DashboardBadges | null>(null);
 
   const load = useCallback(async () => {
     const isLoggedIn = !!organizationId || !!volunteerId;
     if (!isLoggedIn) {
       setBadges(INITIAL_STATE);
+      prevBadgesRef.current = null;
       return;
     }
 
@@ -184,7 +187,7 @@ export function useDashboardBadges(
 
       const total = pendingAffiliations + pendingMatchOffers + transitDogs + unreadChats + unreadGroupChats;
 
-      setBadges({
+      const newBadges: DashboardBadges = {
         total,
         pendingAffiliations,
         pendingMatchOffers,
@@ -194,7 +197,60 @@ export function useDashboardBadges(
         chatThreads,
         unreadGroupChats,
         groupChatUnreads,
-      });
+      };
+
+      // WEB通知のトリガー処理
+      const prev = prevBadgesRef.current;
+      if (prev) {
+        // 1. 個別チャット新着通知
+        newBadges.chatThreads.forEach((thread) => {
+          if (!prev.chatUnreads[thread.id] && newBadges.chatUnreads[thread.id]) {
+            const counterpartName =
+              thread.participantAKey === myKey ? thread.participantBName : thread.participantAName;
+            sendWebNotification('新着メッセージ', {
+              body: `${counterpartName}さんからメッセージが届きました`,
+              tag: `chat:${thread.id}`,
+            });
+          }
+        });
+
+        // 2. グループチャット新着通知
+        Object.keys(newBadges.groupChatUnreads).forEach((orgId) => {
+          if (!prev.groupChatUnreads[orgId] && newBadges.groupChatUnreads[orgId]) {
+            sendWebNotification('グループチャット', {
+              body: 'グループチャットに新着メッセージがあります',
+              tag: `group:${orgId}`,
+            });
+          }
+        });
+
+        // 3. 所属申請通知
+        if (newBadges.pendingAffiliations > prev.pendingAffiliations) {
+          sendWebNotification('所属申請', {
+            body: `新しいボランティア所属申請が届いています（${newBadges.pendingAffiliations}件）`,
+            tag: 'affiliation',
+          });
+        }
+
+        // 4. 預かりオファー通知
+        if (newBadges.pendingMatchOffers > prev.pendingMatchOffers) {
+          sendWebNotification('預かり申請', {
+            body: `保護犬の預かり申し出・交渉が更新されました（${newBadges.pendingMatchOffers}件）`,
+            tag: 'match',
+          });
+        }
+
+        // 5. 搬送中保護犬通知
+        if (newBadges.transitDogs > prev.transitDogs) {
+          sendWebNotification('搬送ステータス変更', {
+            body: `担当する保護犬が搬送中になりました（${newBadges.transitDogs}頭）`,
+            tag: 'transit',
+          });
+        }
+      }
+
+      prevBadgesRef.current = newBadges;
+      setBadges(newBadges);
     } catch (err) {
       console.error('Failed to load dashboard badges', err);
     }
@@ -213,6 +269,7 @@ export function useDashboardBadges(
     const unsubscribe = Hub.listen('auth', ({ payload }) => {
       if (payload.event === 'signedIn') safeLoad();
       if (payload.event === 'signedOut') {
+        prevBadgesRef.current = null;
         setBadges(INITIAL_STATE);
       }
     });
