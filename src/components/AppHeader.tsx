@@ -5,6 +5,8 @@ import {
   isWebNotificationEnabled,
   requestNotificationPermission,
   setWebNotificationEnabled,
+  subscribeUserToPush,
+  unsubscribeUserFromPush,
 } from '../utils/webNotification';
 import './AppHeader.css';
 
@@ -56,13 +58,22 @@ export function AppHeader({
   const handleRequestPermission = async () => {
     const result = await requestNotificationPermission();
     setPermission(result);
-    setNotificationEnabled(isWebNotificationEnabled());
+    const enabled = isWebNotificationEnabled();
+    setNotificationEnabled(enabled);
+    if (result === 'granted') {
+      void subscribeUserToPush();
+    }
   };
 
-  const handleToggleNotification = () => {
+  const handleToggleNotification = async () => {
     const next = !notificationEnabled;
     setWebNotificationEnabled(next);
     setNotificationEnabled(next);
+    if (next) {
+      await subscribeUserToPush();
+    } else {
+      await unsubscribeUserFromPush();
+    }
   };
 
   return (

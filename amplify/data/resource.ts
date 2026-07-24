@@ -395,6 +395,19 @@ const schema = a.schema({
     .secondaryIndexes((index) => [
       index('dogMediaId').queryField('listByMedia'),
     ]),
+
+  // ── Web Push 購読情報 ────────────────────────────────
+  PushSubscription: a
+    .model({
+      userSub: a.string().required(),
+      endpoint: a.string().required(),
+      p256dh: a.string().required(),
+      auth: a.string().required(),
+    })
+    .authorization((allow) => [
+      allow.owner(),
+      allow.authenticated().to(['read']),
+    ]),
 });
 
 export type Schema = ClientSchema<typeof schema>;
