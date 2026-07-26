@@ -1,3 +1,4 @@
+import { getCurrentUser } from 'aws-amplify/auth';
 import { dataClient } from '../lib/dataClient';
 
 const NOTIFICATION_ENABLED_KEY = 'web_notification_enabled';
@@ -149,23 +150,38 @@ export async function subscribeUserToPush(userSub?: string): Promise<PushSubscri
       });
     }
 
+    let targetUserSub = userSub;
+    if (!targetUserSub) {
+      try {
+        const currentUser = await getCurrentUser();
+        targetUserSub = currentUser.userId;
+      } catch (authErr) {
+        console.log('User is not logged in, skipping DynamoDB PushSubscription save.');
+      }
+    }
+
     // ユーザーSubがある場合はDynamoDBへ登録
-    if (userSub && subscription) {
+    if (targetUserSub && subscription) {
       const subJson = subscription.toJSON();
       const endpoint = subscription.endpoint;
       const p256dh = subJson.keys?.p256dh ?? '';
       const auth = subJson.keys?.auth ?? '';
 
       if (endpoint && p256dh && auth) {
-        await dataClient.models.PushSubscription.create(
-          {
-            userSub,
-            endpoint,
-            p256dh,
-            auth,
-          },
-          { authMode: 'userPool' }
-        );
+        try {
+          await dataClient.models.PushSubscription.create(
+            {
+              userSub: targetUserSub,
+              endpoint,
+              p256dh,
+              auth,
+            },
+            { authMode: 'userPool' }
+          );
+          console.log('Successfully saved PushSubscription to DynamoDB for user:', targetUserSub);
+        } catch (dbErr) {
+          console.warn('PushSubscription creation in DynamoDB:', dbErr);
+        }
       }
     }
 

@@ -2,7 +2,7 @@ import { getCurrentUser } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { dataClient } from '../lib/dataClient';
-import { sendWebNotification, updateAppBadge } from '../utils/webNotification';
+import { isWebNotificationEnabled, sendWebNotification, subscribeUserToPush, updateAppBadge } from '../utils/webNotification';
 
 const POLL_INTERVAL_MS = 6000;
 
@@ -54,6 +54,11 @@ export function useDashboardBadges(
       prevBadgesRef.current = null;
       void updateAppBadge(0);
       return;
+    }
+
+    // ログイン済みかつWEB通知が許可・有効な場合、端末情報(PushSubscription)をDynamoDBに同期
+    if (isWebNotificationEnabled()) {
+      void subscribeUserToPush();
     }
 
     try {
