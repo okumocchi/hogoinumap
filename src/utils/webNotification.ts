@@ -143,7 +143,7 @@ export async function subscribeUserToPush(userSub?: string): Promise<PushSubscri
     let subscription = await registration.pushManager.getSubscription();
 
     if (!subscription) {
-      const applicationServerKey = urlBase64ToUint8Array(DEFAULT_VAPID_PUBLIC_KEY);
+      const applicationServerKey = urlBase64ToUint8Array(DEFAULT_VAPID_PUBLIC_KEY) as unknown as BufferSource;
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey,
@@ -169,7 +169,7 @@ export async function subscribeUserToPush(userSub?: string): Promise<PushSubscri
 
       if (endpoint && p256dh && auth) {
         try {
-          await dataClient.models.PushSubscription.create(
+          await (dataClient.models.PushSubscription.create as any)(
             {
               userSub: targetUserSub,
               endpoint,
