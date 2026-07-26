@@ -29,6 +29,14 @@ export function ChatWindow({ threadId, owners, myKey, myName, counterpartName, o
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+    }
+  }, [draft]);
 
   async function fetchMessages(): Promise<ChatMessageItem[]> {
     const result = await dataClient.models.ChatMessage.listMessagesByThread(
@@ -113,8 +121,10 @@ export function ChatWindow({ threadId, owners, myKey, myName, counterpartName, o
               key={message.id}
               className={`chat-window__bubble-row ${message.senderKey === myKey ? 'chat-window__bubble-row--mine' : ''}`}
             >
-              <div className="chat-window__bubble">
-                <p className="chat-window__bubble-body">{message.body}</p>
+              <div className="chat-window__bubble-wrapper">
+                <div className="chat-window__bubble">
+                  <p className="chat-window__bubble-body">{message.body}</p>
+                </div>
                 <span className="chat-window__bubble-time">
                   {new Date(message.createdAt).toLocaleString('ja-JP', {
                     month: 'numeric',
@@ -139,6 +149,7 @@ export function ChatWindow({ threadId, owners, myKey, myName, counterpartName, o
         }}
       >
         <textarea
+          ref={textareaRef}
           className="chat-window__input"
           rows={1}
           value={draft}
