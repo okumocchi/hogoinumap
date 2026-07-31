@@ -90,6 +90,7 @@ const schema = a.schema({
       organization: a.belongsTo('Organization', 'organizationId'),
 
       status: a.enum(['PENDING', 'APPROVED', 'REJECTED']),
+      isModerator: a.boolean().default(false),
       requestMessage: a.string(), // 例:「札幌の山田です。承認お願いします。」
 
       // 団体側ユーザーのsubとボランティア側ユーザーのsubを両方格納し、

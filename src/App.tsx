@@ -1,12 +1,13 @@
 import { getCurrentUser, signOut } from 'aws-amplify/auth';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { ChatWindow } from './components/ChatWindow';
 import { GroupChatWindow } from './components/GroupChatWindow';
 import { useCurrentUser } from './hooks/useCurrentUser';
-import { useMyOrganization } from './hooks/useMyOrganization';
+import { type MyOrganization, useMyOrganization } from './hooks/useMyOrganization';
 import { useMyVolunteer } from './hooks/useMyVolunteer';
-import { useDashboardBadges } from './hooks/useDashboardBadges';
+import { type ChatThreadItem, useDashboardBadges } from './hooks/useDashboardBadges';
 import { type ChatParticipant, chatParticipantKey, findOrCreateChatThread, findOrCreateGroupChatThread } from './lib/chat';
+import { dataClient } from './lib/dataClient';
 import { DogDetailScreen } from './screens/DogDetailScreen';
 import { DogListScreen } from './screens/DogListScreen';
 import { GalleryScreen } from './screens/GalleryScreen';
@@ -39,7 +40,7 @@ type Route =
   | { screen: 'signup-choice'; from: FromScreen }
   | { screen: 'org-signup'; from: FromScreen }
   | { screen: 'volunteer-signup'; from: FromScreen }
-  | { screen: 'org-dashboard'; from: FromScreen }
+  | { screen: 'org-dashboard'; from: FromScreen | 'volunteer-dashboard'; moderatorOrgId?: string }
   | { screen: 'volunteer-dashboard'; from: FromScreen };
 
 interface ActiveChat {
@@ -49,6 +50,79 @@ interface ActiveChat {
   myName: string;
   counterpartName: string;
   isGroup?: boolean;
+}
+
+function ModeratorOrgDashboardLoader({
+  organizationId,
+  myVolunteerId,
+  onBack,
+  onOpenChatThread,
+  chatThreads,
+  chatUnreads,
+  pendingMatchOffers,
+  onStartGroupChat,
+  groupChatUnreads,
+}: {
+  organizationId: string;
+  myVolunteerId?: string;
+  onBack: () => void;
+  onOpenChatThread: (threadId: string, counterpartName: string, owners: string[]) => void;
+  chatThreads: ChatThreadItem[];
+  chatUnreads: Record<string, number>;
+  pendingMatchOffers: number;
+  onStartGroupChat: (orgId: string, orgName: string) => Promise<void>;
+  groupChatUnreads: Record<string, number>;
+}) {
+  const [org, setOrg] = useState<MyOrganization | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadOrg = useCallback(async () => {
+    try {
+      const res = await dataClient.models.Organization.get({ id: organizationId }, { authMode: 'userPool' });
+      if (res.data) {
+        setOrg({
+          id: res.data.id,
+          name: res.data.name,
+          prefecture: res.data.prefecture,
+          city: res.data.city,
+          addressLine: res.data.addressLine,
+          latitude: res.data.latitude ?? undefined,
+          longitude: res.data.longitude ?? undefined,
+          contactEmail: res.data.contactEmail ?? undefined,
+          contactPhone: res.data.contactPhone ?? undefined,
+          wishlistUrl: res.data.wishlistUrl ?? undefined,
+          websiteUrl: res.data.websiteUrl ?? undefined,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load moderator organization:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [organizationId]);
+
+  useEffect(() => {
+    loadOrg();
+  }, [loadOrg]);
+
+  if (loading) return <div style={{ padding: '24px', textAlign: 'center' }}>読み込み中…</div>;
+  if (!org) return <div style={{ padding: '24px', textAlign: 'center' }}>保護団体情報が見つかりません。</div>;
+
+  return (
+    <OrganizationDashboardScreen
+      organization={org}
+      onBack={onBack}
+      onUpdated={loadOrg}
+      onOpenChatThread={onOpenChatThread}
+      chatThreads={chatThreads}
+      chatUnreads={chatUnreads}
+      pendingMatchOffers={pendingMatchOffers}
+      onStartGroupChat={onStartGroupChat}
+      groupChatUnreads={groupChatUnreads}
+      isModeratorViewer={true}
+      myVolunteerId={myVolunteerId}
+    />
+  );
 }
 
 function App() {
@@ -250,22 +324,45 @@ function App() {
       />
     );
   } else if (route.screen === 'org-dashboard') {
-    screen = myOrganization ? (
-      <OrganizationDashboardScreen
-        organization={myOrganization}
-        onBack={() => {
-          void refetchBadges();
-          setRoute({ screen: route.from });
-        }}
-        onUpdated={refetchMyOrganization}
-        onOpenChatThread={handleOpenChatThread}
-        chatThreads={badges.chatThreads}
-        chatUnreads={badges.chatUnreads}
-        pendingMatchOffers={badges.pendingMatchOffers}
-        onStartGroupChat={handleStartGroupChat}
-        groupChatUnreads={badges.groupChatUnreads}
-      />
-    ) : null;
+    if (route.moderatorOrgId) {
+      screen = (
+        <ModeratorOrgDashboardLoader
+          organizationId={route.moderatorOrgId}
+          myVolunteerId={myVolunteer?.id}
+          onBack={() => {
+            void refetchBadges();
+            setRoute({ screen: 'volunteer-dashboard', from: 'map' });
+          }}
+          onOpenChatThread={handleOpenChatThread}
+          chatThreads={badges.chatThreads}
+          chatUnreads={badges.chatUnreads}
+          pendingMatchOffers={badges.pendingMatchOffers}
+          onStartGroupChat={handleStartGroupChat}
+          groupChatUnreads={badges.groupChatUnreads}
+        />
+      );
+    } else {
+      screen = myOrganization ? (
+        <OrganizationDashboardScreen
+          organization={myOrganization}
+          onBack={() => {
+            void refetchBadges();
+            if (route.from === 'volunteer-dashboard') {
+              setRoute({ screen: 'volunteer-dashboard', from: 'map' });
+            } else {
+              setRoute({ screen: route.from });
+            }
+          }}
+          onUpdated={refetchMyOrganization}
+          onOpenChatThread={handleOpenChatThread}
+          chatThreads={badges.chatThreads}
+          chatUnreads={badges.chatUnreads}
+          pendingMatchOffers={badges.pendingMatchOffers}
+          onStartGroupChat={handleStartGroupChat}
+          groupChatUnreads={badges.groupChatUnreads}
+        />
+      ) : null;
+    }
   } else if (route.screen === 'volunteer-dashboard') {
     screen = myVolunteer ? (
       <VolunteerDashboardScreen
@@ -284,6 +381,9 @@ function App() {
         }
         onStartGroupChat={handleStartGroupChat}
         groupChatUnreads={badges.groupChatUnreads}
+        onOpenModeratorDashboard={(orgId) =>
+          setRoute({ screen: 'org-dashboard', from: 'volunteer-dashboard', moderatorOrgId: orgId })
+        }
       />
     ) : null;
   } else if (route.screen === 'dog-list') {

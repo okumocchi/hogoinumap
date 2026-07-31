@@ -14,8 +14,12 @@
 
 .volunteer-detail__slots-section h2 {
   font-size: 18px;
+  font-weight: 700;
   margin: 0 0 16px;
   color: var(--text-h);
+  border-left: 4px solid var(--accent);
+  padding-left: 10px;
+  line-height: 1.3;
 }
 
 .volunteer-detail__slot-list {

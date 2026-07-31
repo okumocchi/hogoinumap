@@ -87,8 +87,12 @@
 }
 
 .dog-detail__block h2 {
-  font-size: 16px;
+  font-size: 18px;
+  font-weight: 700;
   margin: 0 0 8px;
+  border-left: 4px solid var(--accent);
+  padding-left: 10px;
+  line-height: 1.3;
 }
 
 .dog-detail__block p {
@@ -100,7 +104,11 @@
 .dog-detail__media h2,
 .dog-detail__org h2 {
   font-size: 18px;
+  font-weight: 700;
   margin: 0 0 12px;
+  border-left: 4px solid var(--accent);
+  padding-left: 10px;
+  line-height: 1.3;
 }
 
 .dog-detail__block-heading {
@@ -429,7 +437,11 @@
 
 .dog-detail__history h2 {
   font-size: 18px;
+  font-weight: 700;
   margin: 0 0 12px;
+  border-left: 4px solid var(--accent);
+  padding-left: 10px;
+  line-height: 1.3;
 }
 
 .dog-detail__history-empty {

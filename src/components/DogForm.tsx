@@ -83,14 +83,14 @@ export function DogForm({ initialValues, submitLabel, submitting, submitError, o
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
-    if (!form.name || !form.protectedDate || !form.birthDate || !form.personality || !form.story) {
+    if (!form.protectedDate || !form.birthDate) {
       setValidationError('必須項目をすべて入力してください。');
       return;
     }
 
     setValidationError(null);
     onSubmit({
-      name: form.name,
+      name: form.name.trim() || '未定',
       protectedDate: form.protectedDate,
       gender: form.gender,
       size: form.size,
@@ -113,8 +113,13 @@ export function DogForm({ initialValues, submitLabel, submitting, submitError, o
     <form className="dog-form" onSubmit={handleSubmit}>
       <h2>保護犬情報</h2>
       <label className="dog-form__field">
-        <span>名前</span>
-        <input type="text" required value={form.name} onChange={(e) => updateField('name', e.target.value)} />
+        <span>名前(任意)</span>
+        <input
+          type="text"
+          placeholder="未入力の場合は「未定」になります"
+          value={form.name}
+          onChange={(e) => updateField('name', e.target.value)}
+        />
       </label>
       <div className="dog-form__row">
         <label className="dog-form__field">
@@ -181,13 +186,12 @@ export function DogForm({ initialValues, submitLabel, submitting, submitError, o
       </div>
 
       <label className="dog-form__field">
-        <span>保護の経緯</span>
-        <textarea required rows={2} value={form.story} onChange={(e) => updateField('story', e.target.value)} />
+        <span>保護の経緯(任意)</span>
+        <textarea rows={2} value={form.story} onChange={(e) => updateField('story', e.target.value)} />
       </label>
       <label className="dog-form__field">
-        <span>性格・状態</span>
+        <span>性格・状態(任意)</span>
         <textarea
-          required
           rows={4}
           value={form.personality}
           onChange={(e) => updateField('personality', e.target.value)}
