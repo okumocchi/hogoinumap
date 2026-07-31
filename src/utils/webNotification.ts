@@ -114,7 +114,7 @@ export async function updateAppBadge(count: number): Promise<void> {
 }
 
 /**
- * Service Worker を登録します。
+ * Service Worker を登録・更新します。
  */
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
@@ -123,6 +123,8 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
 
   try {
     const registration = await navigator.serviceWorker.register('/sw.js');
+    // 最新のService Workerがあるかバックグラウンドでチェック
+    void registration.update().catch(() => {});
     return registration;
   } catch (error) {
     console.error('Service Worker registration failed:', error);
@@ -160,7 +162,7 @@ export async function subscribeUserToPush(userSub?: string): Promise<PushSubscri
       }
     }
 
-    // ユーザーSubがある場合はDynamoDBへ登録
+    // ユーザーSubがある場合はDynamoDBへ保存・同期
     if (targetUserSub && subscription) {
       const subJson = subscription.toJSON();
       const endpoint = subscription.endpoint;
@@ -168,19 +170,30 @@ export async function subscribeUserToPush(userSub?: string): Promise<PushSubscri
       const auth = subJson.keys?.auth ?? '';
 
       if (endpoint && p256dh && auth) {
-        try {
-          await (dataClient.models.PushSubscription.create as any)(
-            {
-              userSub: targetUserSub,
-              endpoint,
-              p256dh,
-              auth,
-            },
-            { authMode: 'userPool' }
-          );
-          console.log('Successfully saved PushSubscription to DynamoDB for user:', targetUserSub);
-        } catch (dbErr) {
-          console.warn('PushSubscription creation in DynamoDB:', dbErr);
+        // 重複保存の頻度を抑えるためのローカルストレージチェック
+        const syncKey = `push_sub_synced:${targetUserSub}:${endpoint}`;
+        const lastSynced = localStorage.getItem(syncKey);
+        const now = Date.now();
+
+        // 24時間に1回は強制同期（未同期または24時間経過時）
+        if (!lastSynced || now - parseInt(lastSynced, 10) > 86400000) {
+          try {
+            await (dataClient.models.PushSubscription.create as any)(
+              {
+                userSub: targetUserSub,
+                endpoint,
+                p256dh,
+                auth,
+              },
+              { authMode: 'userPool' }
+            );
+            localStorage.setItem(syncKey, now.toString());
+            console.log('Successfully saved PushSubscription to DynamoDB for user:', targetUserSub);
+          } catch (dbErr) {
+            // 重複キー等ですでに作成済みの場合は成功とみなして同期タイムスタンプを保存
+            localStorage.setItem(syncKey, now.toString());
+            console.warn('PushSubscription creation in DynamoDB:', dbErr);
+          }
         }
       }
     }
