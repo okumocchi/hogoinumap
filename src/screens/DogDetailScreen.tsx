@@ -12,6 +12,7 @@ import {
   calculateAgeLabel,
   calculateElapsedLabel,
   custodianTypeLabel,
+  dogStatusComment,
   effectiveDogStatusLabel,
   genderLabel,
   isDogOpenForFosterOffers,
@@ -44,7 +45,10 @@ interface CustodyHistoryItem {
   custodianType: CustodianType;
   custodianName: string;
   startDate: string;
+  status?: DogStatus;
+  comment?: string;
 }
+
 
 function today(): string {
   const now = new Date();
@@ -240,12 +244,18 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
       );
       if (cancelled) return;
       setCustodyHistory(
-        result.data.map((item) => ({
-          id: item.id,
-          custodianType: (item.custodianType ?? 'ORGANIZATION') as CustodianType,
-          custodianName: item.custodianName,
-          startDate: item.startDate,
-        })),
+        result.data.map((item) => {
+          const itemStatus = item.status as DogStatus | undefined;
+          const comment = item.comment || (itemStatus ? dogStatusComment[itemStatus] : undefined);
+          return {
+            id: item.id,
+            custodianType: (item.custodianType ?? 'ORGANIZATION') as CustodianType,
+            custodianName: item.custodianName,
+            startDate: item.startDate,
+            status: itemStatus,
+            comment,
+          };
+        }),
       );
     }
 
@@ -862,7 +872,9 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
                 <li key={item.id} className="dog-detail__history-item">
                   <span className="dog-detail__history-date">{item.startDate}</span>
                   <span className="dog-detail__history-name">
-                    {custodianTypeLabel[item.custodianType]}「{item.custodianName}」
+                    {item.status === 'PROTECTED' || item.status === 'FOSTERED' || item.comment === '保護開始' || item.comment === '預かり開始'
+                      ? `${custodianTypeLabel[item.custodianType]}「${item.custodianName}」`
+                      : (item.comment || (item.status ? dogStatusComment[item.status] : `${custodianTypeLabel[item.custodianType]}「${item.custodianName}」`))}
                   </span>
                 </li>
               ))}

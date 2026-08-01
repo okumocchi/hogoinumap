@@ -1,11 +1,11 @@
 import { fetchAuthSession, getCurrentUser } from 'aws-amplify/auth';
 import { getUrl } from 'aws-amplify/storage';
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { DogForm, type DogFormValues } from '../components/DogForm';
 import type { MyOrganization } from '../hooks/useMyOrganization';
 import { dataClient } from '../lib/dataClient';
 import type { Dog, DogGender, DogSize, DogStatus } from '../types/models';
-import { calculateAgeLabel, effectiveDogStatusLabel, genderLabel, isDogOpenForFosterOffers } from '../utils/dog';
+import { calculateAgeLabel, dogStatusComment, effectiveDogStatusLabel, genderLabel, isDogOpenForFosterOffers } from '../utils/dog';
 import { geocodeAddress } from '../utils/geocode';
 import { PREFECTURES } from '../utils/prefectures';
 import { OrganizationDogDetailScreen } from './OrganizationDogDetailScreen';
@@ -36,6 +36,7 @@ interface OrganizationDashboardScreenProps {
   groupChatUnreads: Record<string, number>;
   isModeratorViewer?: boolean;
   myVolunteerId?: string;
+  onSelectVolunteer?: (volunteerId: string) => void;
 }
 
 interface OrgInfoFormState {
@@ -134,12 +135,26 @@ export function OrganizationDashboardScreen({
   groupChatUnreads,
   isModeratorViewer = false,
   myVolunteerId,
+  onSelectVolunteer,
 }: OrganizationDashboardScreenProps) {
   const [mode, setMode] = useState<Mode>({ screen: 'list' });
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [showFostered, setShowFostered] = useState(false);
+  const [showAllStatus, setShowAllStatus] = useState(false);
+
+  const displayedDogs = useMemo(() => {
+    if (showAllStatus) {
+      return dogs;
+    }
+    if (showFostered) {
+      return dogs.filter((d) => d.status === 'PROTECTED' || d.status === 'FOSTERED');
+    }
+    return dogs.filter((d) => d.status === 'PROTECTED');
+  }, [dogs, showFostered, showAllStatus]);
 
   const [editingOrgInfo, setEditingOrgInfo] = useState(false);
   const [orgForm, setOrgForm] = useState<OrgInfoFormState>(() => orgToFormState(organization));
@@ -495,6 +510,8 @@ export function OrganizationDashboardScreen({
           custodianId: organization.id,
           custodianName: organization.name,
           startDate: values.protectedDate,
+          status: 'PROTECTED',
+          comment: dogStatusComment['PROTECTED'],
         };
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await dataClient.models.CustodyRecord.create(custodyInput as any);
@@ -513,6 +530,9 @@ export function OrganizationDashboardScreen({
     setError(null);
     setSubmitting(true);
     try {
+      const currentDog = dogs.find((d) => d.id === dogId);
+      const isStatusChanged = currentDog && currentDog.status !== values.status;
+
       const dogInput = {
         id: dogId,
         ...values,
@@ -524,6 +544,21 @@ export function OrganizationDashboardScreen({
       const result = await dataClient.models.Dog.update(dogInput as any);
       if (result.errors?.length) {
         throw new Error(result.errors.map((e) => e.message).join(' / '));
+      }
+
+      // ステータスが変更になった際（「搬送中」を除く）、日付情報を預かり履歴として追加する
+      if (isStatusChanged && values.status !== 'IN_TRANSIT') {
+        const custodyInput = {
+          dogId,
+          custodianType: 'ORGANIZATION',
+          custodianId: organization.id,
+          custodianName: organization.name,
+          startDate: today(),
+          status: values.status,
+          comment: dogStatusComment[values.status],
+        };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await dataClient.models.CustodyRecord.create(custodyInput as any);
       }
 
       setDogs(await fetchDogs());
@@ -836,10 +871,17 @@ export function OrganizationDashboardScreen({
                                             🎖️
                                           </span>
                                         )}
-                                        <span className="org-dashboard__compact-name">{vol.handleName}</span>
-                                        <span className="org-dashboard__compact-meta">
-                                          ({vol.prefecture} {vol.city})
-                                        </span>
+                                        {onSelectVolunteer ? (
+                                           <button
+                                             type="button"
+                                             className="org-dashboard__volunteer-link"
+                                             onClick={() => onSelectVolunteer(vol.id)}
+                                           >
+                                             {vol.handleName}
+                                           </button>
+                                         ) : (
+                                           <span className="org-dashboard__compact-name">{vol.handleName}</span>
+                                         )}
                                         {hasUnread && <span className="org-dashboard__unread-indicator">🔴 未読あり</span>}
                                       </div>
                                       <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -975,7 +1017,7 @@ export function OrganizationDashboardScreen({
               <>
                 <div className="org-dashboard__section-title-row">
                   <h2>
-                    登録されている保護犬
+                    保護中の保護犬
                     {pendingMatchOffers > 0 && (
                       <span className="org-dashboard__section-badge">{pendingMatchOffers}</span>
                     )}
@@ -988,11 +1030,43 @@ export function OrganizationDashboardScreen({
                     + 保護犬を登録する
                   </button>
                 </div>
-                {dogs.length === 0 ? (
-                  <p className="org-dashboard__empty">登録されている保護犬はまだいません。</p>
+                <div className="org-dashboard__filter-row">
+                  <label className="org-dashboard__filter-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={showFostered}
+                      onChange={(e) => {
+                        setShowFostered(e.target.checked);
+                        if (e.target.checked && showAllStatus) {
+                          setShowAllStatus(false);
+                        }
+                      }}
+                    />
+                    <span>預かり中も表示</span>
+                  </label>
+                  <label className="org-dashboard__filter-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={showAllStatus}
+                      onChange={(e) => {
+                        setShowAllStatus(e.target.checked);
+                        if (e.target.checked && showFostered) {
+                          setShowFostered(false);
+                        }
+                      }}
+                    />
+                    <span>すべて表示</span>
+                  </label>
+                </div>
+                {displayedDogs.length === 0 ? (
+                  <p className="org-dashboard__empty">
+                    {dogs.length === 0
+                      ? '登録されている保護犬はまだいません。'
+                      : '表示条件に該当する保護犬はいません。'}
+                  </p>
                 ) : (
                   <ul className="org-dashboard__dog-list">
-                    {dogs.map((dog) => (
+                    {displayedDogs.map((dog) => (
                       <li key={dog.id}>
                         <button
                           type="button"

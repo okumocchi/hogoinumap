@@ -21,27 +21,19 @@ import { VolunteerDetailScreen } from './screens/VolunteerDetailScreen';
 import { VolunteerSignUpScreen } from './screens/VolunteerSignUpScreen';
 import { OrganizationSignUpScreen } from './screens/OrganizationSignUpScreen';
 
-type FromScreen = 'map' | 'dog-list' | 'gallery';
-
 type Route =
   | { screen: 'map' }
   | { screen: 'dog-list' }
   | { screen: 'gallery' }
-  | { screen: 'dog-detail'; dogId: string; from: FromScreen | 'volunteer-dashboard' }
-  | {
-      screen: 'organization-detail';
-      organizationId: string;
-      from: FromScreen | 'volunteer-dashboard';
-      fromDogId?: string;
-      fromDogFrom?: FromScreen | 'volunteer-dashboard';
-    }
-  | { screen: 'volunteer-detail'; volunteerId: string; from: FromScreen }
-  | { screen: 'login'; from: FromScreen }
-  | { screen: 'signup-choice'; from: FromScreen }
-  | { screen: 'org-signup'; from: FromScreen }
-  | { screen: 'volunteer-signup'; from: FromScreen }
-  | { screen: 'org-dashboard'; from: FromScreen | 'volunteer-dashboard'; moderatorOrgId?: string }
-  | { screen: 'volunteer-dashboard'; from: FromScreen };
+  | { screen: 'dog-detail'; dogId: string }
+  | { screen: 'organization-detail'; organizationId: string }
+  | { screen: 'volunteer-detail'; volunteerId: string }
+  | { screen: 'login' }
+  | { screen: 'signup-choice' }
+  | { screen: 'org-signup' }
+  | { screen: 'volunteer-signup' }
+  | { screen: 'org-dashboard'; moderatorOrgId?: string }
+  | { screen: 'volunteer-dashboard' };
 
 interface ActiveChat {
   threadId: string;
@@ -62,6 +54,7 @@ function ModeratorOrgDashboardLoader({
   pendingMatchOffers,
   onStartGroupChat,
   groupChatUnreads,
+  onSelectVolunteer,
 }: {
   organizationId: string;
   myVolunteerId?: string;
@@ -72,6 +65,7 @@ function ModeratorOrgDashboardLoader({
   pendingMatchOffers: number;
   onStartGroupChat: (orgId: string, orgName: string) => Promise<void>;
   groupChatUnreads: Record<string, number>;
+  onSelectVolunteer?: (volunteerId: string) => void;
 }) {
   const [org, setOrg] = useState<MyOrganization | null>(null);
   const [loading, setLoading] = useState(true);
@@ -121,12 +115,23 @@ function ModeratorOrgDashboardLoader({
       groupChatUnreads={groupChatUnreads}
       isModeratorViewer={true}
       myVolunteerId={myVolunteerId}
+      onSelectVolunteer={onSelectVolunteer}
     />
   );
 }
 
 function App() {
-  const [route, setRoute] = useState<Route>({ screen: 'map' });
+  const [history, setHistory] = useState<Route[]>([{ screen: 'map' }]);
+  const route = history[history.length - 1] ?? { screen: 'map' };
+
+  const pushRoute = useCallback((newRoute: Route) => {
+    setHistory((prev) => [...prev, newRoute]);
+  }, []);
+
+  const popRoute = useCallback(() => {
+    setHistory((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev));
+  }, []);
+
   const currentUserEmail = useCurrentUser();
   const [myOrganization, refetchMyOrganization] = useMyOrganization();
   const [myVolunteer, refetchMyVolunteer] = useMyVolunteer();
@@ -236,42 +241,16 @@ function App() {
     screen = (
       <DogDetailScreen
         dogId={route.dogId}
-        onBack={() => {
-          if (route.from === 'volunteer-dashboard') {
-            setRoute({ screen: 'volunteer-dashboard', from: 'map' });
-          } else {
-            setRoute({ screen: route.from });
-          }
-        }}
-        onSelectOrganization={(orgId) =>
-          setRoute({
-            screen: 'organization-detail',
-            organizationId: orgId,
-            from: route.from,
-            fromDogId: route.dogId,
-            fromDogFrom: route.from,
-          })
-        }
+        onBack={popRoute}
+        onSelectOrganization={(orgId) => pushRoute({ screen: 'organization-detail', organizationId: orgId })}
       />
     );
   } else if (route.screen === 'organization-detail') {
     screen = (
       <OrganizationDetailScreen
         organizationId={route.organizationId}
-        onBack={() => {
-          if ('fromDogId' in route && route.fromDogId) {
-            setRoute({
-              screen: 'dog-detail',
-              dogId: route.fromDogId,
-              from: route.fromDogFrom || 'map',
-            });
-          } else if (route.from === 'volunteer-dashboard') {
-            setRoute({ screen: 'volunteer-dashboard', from: 'map' });
-          } else {
-            setRoute({ screen: route.from });
-          }
-        }}
-        onSelectDog={(dogId) => setRoute({ screen: 'dog-detail', dogId, from: route.from })}
+        onBack={popRoute}
+        onSelectDog={(dogId) => pushRoute({ screen: 'dog-detail', dogId })}
         viewerParticipant={viewerParticipant}
         onStartChat={handleStartChat}
         onStartGroupChat={handleStartGroupChat}
@@ -281,8 +260,8 @@ function App() {
     screen = (
       <VolunteerDetailScreen
         volunteerId={route.volunteerId}
-        onBack={() => setRoute({ screen: route.from })}
-        onSelectDog={(dogId) => setRoute({ screen: 'dog-detail', dogId, from: route.from })}
+        onBack={popRoute}
+        onSelectDog={(dogId) => pushRoute({ screen: 'dog-detail', dogId })}
         viewerParticipant={viewerParticipant}
         onStartChat={handleStartChat}
       />
@@ -290,36 +269,36 @@ function App() {
   } else if (route.screen === 'login') {
     screen = (
       <LoginScreen
-        onBack={() => setRoute({ screen: route.from })}
-        onComplete={() => setRoute({ screen: route.from })}
-        onSignUp={() => setRoute({ screen: 'signup-choice', from: route.from })}
+        onBack={popRoute}
+        onComplete={popRoute}
+        onSignUp={() => pushRoute({ screen: 'signup-choice' })}
       />
     );
   } else if (route.screen === 'signup-choice') {
     screen = (
       <SignUpChoiceScreen
-        onBack={() => setRoute({ screen: route.from })}
-        onSelectOrganization={() => setRoute({ screen: 'org-signup', from: route.from })}
-        onSelectVolunteer={() => setRoute({ screen: 'volunteer-signup', from: route.from })}
+        onBack={popRoute}
+        onSelectOrganization={() => pushRoute({ screen: 'org-signup' })}
+        onSelectVolunteer={() => pushRoute({ screen: 'volunteer-signup' })}
       />
     );
   } else if (route.screen === 'org-signup') {
     screen = (
       <OrganizationSignUpScreen
-        onBack={() => setRoute({ screen: route.from })}
+        onBack={popRoute}
         onComplete={() => {
           refetchMyOrganization();
-          setRoute({ screen: route.from });
+          popRoute();
         }}
       />
     );
   } else if (route.screen === 'volunteer-signup') {
     screen = (
       <VolunteerSignUpScreen
-        onBack={() => setRoute({ screen: route.from })}
+        onBack={popRoute}
         onComplete={() => {
           refetchMyVolunteer();
-          setRoute({ screen: route.from });
+          popRoute();
         }}
       />
     );
@@ -331,7 +310,7 @@ function App() {
           myVolunteerId={myVolunteer?.id}
           onBack={() => {
             void refetchBadges();
-            setRoute({ screen: 'volunteer-dashboard', from: 'map' });
+            popRoute();
           }}
           onOpenChatThread={handleOpenChatThread}
           chatThreads={badges.chatThreads}
@@ -339,6 +318,7 @@ function App() {
           pendingMatchOffers={badges.pendingMatchOffers}
           onStartGroupChat={handleStartGroupChat}
           groupChatUnreads={badges.groupChatUnreads}
+          onSelectVolunteer={(volunteerId) => pushRoute({ screen: 'volunteer-detail', volunteerId })}
         />
       );
     } else {
@@ -347,11 +327,7 @@ function App() {
           organization={myOrganization}
           onBack={() => {
             void refetchBadges();
-            if (route.from === 'volunteer-dashboard') {
-              setRoute({ screen: 'volunteer-dashboard', from: 'map' });
-            } else {
-              setRoute({ screen: route.from });
-            }
+            popRoute();
           }}
           onUpdated={refetchMyOrganization}
           onOpenChatThread={handleOpenChatThread}
@@ -360,6 +336,7 @@ function App() {
           pendingMatchOffers={badges.pendingMatchOffers}
           onStartGroupChat={handleStartGroupChat}
           groupChatUnreads={badges.groupChatUnreads}
+          onSelectVolunteer={(volunteerId) => pushRoute({ screen: 'volunteer-detail', volunteerId })}
         />
       ) : null;
     }
@@ -369,52 +346,48 @@ function App() {
         volunteer={myVolunteer}
         onBack={() => {
           void refetchBadges();
-          setRoute({ screen: route.from });
+          popRoute();
         }}
         onUpdated={refetchMyVolunteer}
-        onSelectDog={(dogId) => setRoute({ screen: 'dog-detail', dogId, from: route.from })}
+        onSelectDog={(dogId) => pushRoute({ screen: 'dog-detail', dogId })}
         onOpenChatThread={handleOpenChatThread}
         chatThreads={badges.chatThreads}
         chatUnreads={badges.chatUnreads}
-        onSelectOrganization={(orgId) =>
-          setRoute({ screen: 'organization-detail', organizationId: orgId, from: 'volunteer-dashboard' })
-        }
+        onSelectOrganization={(orgId) => pushRoute({ screen: 'organization-detail', organizationId: orgId })}
         onStartGroupChat={handleStartGroupChat}
         groupChatUnreads={badges.groupChatUnreads}
-        onOpenModeratorDashboard={(orgId) =>
-          setRoute({ screen: 'org-dashboard', from: 'volunteer-dashboard', moderatorOrgId: orgId })
-        }
+        onOpenModeratorDashboard={(orgId) => pushRoute({ screen: 'org-dashboard', moderatorOrgId: orgId })}
       />
     ) : null;
   } else if (route.screen === 'dog-list') {
     screen = (
       <DogListScreen
-        onSelectDog={(dogId) => setRoute({ screen: 'dog-detail', dogId, from: 'dog-list' })}
-        onBack={() => setRoute({ screen: 'map' })}
+        onSelectDog={(dogId) => pushRoute({ screen: 'dog-detail', dogId })}
+        onBack={popRoute}
       />
     );
   } else if (route.screen === 'gallery') {
     screen = (
       <GalleryScreen
-        onSelectDog={(dogId) => setRoute({ screen: 'dog-detail', dogId, from: 'gallery' })}
-        onBack={() => setRoute({ screen: 'map' })}
+        onSelectDog={(dogId) => pushRoute({ screen: 'dog-detail', dogId })}
+        onBack={popRoute}
       />
     );
   } else {
     // Map screen
     const onSelectOrganization = (organizationId: string) =>
-      setRoute({ screen: 'organization-detail', organizationId, from: 'map' });
+      pushRoute({ screen: 'organization-detail', organizationId });
     const onSelectVolunteer = (volunteerId: string) =>
-      setRoute({ screen: 'volunteer-detail', volunteerId, from: 'map' });
-    const onLogin = () => setRoute({ screen: 'login', from: 'map' });
+      pushRoute({ screen: 'volunteer-detail', volunteerId });
+    const onLogin = () => pushRoute({ screen: 'login' });
     const onLogout = () => {
       void signOut();
     };
     const onOpenDashboard = () => {
       if (myOrganization) {
-        setRoute({ screen: 'org-dashboard', from: 'map' });
+        pushRoute({ screen: 'org-dashboard' });
       } else if (myVolunteer) {
-        setRoute({ screen: 'volunteer-dashboard', from: 'map' });
+        pushRoute({ screen: 'volunteer-dashboard' });
       }
     };
     const showDashboardButton = !!myOrganization || !!myVolunteer;
@@ -424,8 +397,8 @@ function App() {
         onSelectOrganization={onSelectOrganization}
         onSelectVolunteer={onSelectVolunteer}
         homeLocation={homeLocation}
-        onOpenList={() => setRoute({ screen: 'dog-list' })}
-        onOpenGallery={() => setRoute({ screen: 'gallery' })}
+        onOpenList={() => pushRoute({ screen: 'dog-list' })}
+        onOpenGallery={() => pushRoute({ screen: 'gallery' })}
         currentUserEmail={currentUserEmail}
         onLogin={onLogin}
         onLogout={onLogout}

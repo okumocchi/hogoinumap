@@ -6,7 +6,7 @@ import type { MyVolunteer } from '../hooks/useMyVolunteer';
 import { useRegisteredOrganizations } from '../hooks/useRegisteredOrganizations';
 import { dataClient } from '../lib/dataClient';
 import type { DogGender, DogSize, DogStatus } from '../types/models';
-import { calculateAgeLabel, effectiveDogStatusLabel, genderLabel } from '../utils/dog';
+import { calculateAgeLabel, dogStatusComment, effectiveDogStatusLabel, genderLabel } from '../utils/dog';
 import { PREFECTURES } from '../utils/prefectures';
 import { SecondaryHeader } from '../components/SecondaryHeader';
 import './VolunteerDashboardScreen.css';
@@ -306,6 +306,8 @@ export function VolunteerDashboardScreen({
         custodianId: volunteer.id,
         custodianName: volunteer.handleName,
         startDate: today(),
+        status: 'FOSTERED',
+        comment: dogStatusComment['FOSTERED'],
       };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await dataClient.models.CustodyRecord.create(custodyInput as any);

@@ -138,7 +138,7 @@ const schema = a.schema({
       //
       // フィールド単位のauthorization()はa.enum()では未対応のため、a.string()で保持し
       // 値の妥当性はクライアント側の型(DogStatus)で担保する
-      // (PROTECTED | FOSTERED | ADOPTED | RETURNED | IN_TRANSIT)。
+      // (PROTECTED | FOSTERED | ADOPTED | RETURNED | IN_TRANSIT | SUSPENDED | TRANSFERRED)。
       //
       // custodianOwnerSubは単一の文字列(a.string())なので、複数所有者用の
       // ownersDefinedIn(内部的にstring().array()を要求し型が競合してデプロイエラーになる)
@@ -208,6 +208,8 @@ const schema = a.schema({
       custodianName: a.string().required(), // 表示用に非正規化してコピー
 
       startDate: a.date().required(), // 保護時、または預かり者が変わった日
+      status: a.string(),
+      comment: a.string(),
 
       // 記録した本人(団体/ボランティア)が誤登録時に修正できるようownerのみ編集可
       // 閲覧は保護犬詳細ページで表示するためguestにも許可(将来閲覧制限をかける可能性あり)

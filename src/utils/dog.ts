@@ -96,6 +96,17 @@ export const dogStatusLabel: Record<DogStatus, string> = {
   RETURNED: '返還済み',
   IN_TRANSIT: '搬送中',
   SUSPENDED: '公開停止中',
+  TRANSFERRED: '他団体へ移譲',
+};
+
+export const dogStatusComment: Record<DogStatus, string> = {
+  PROTECTED: '保護開始',
+  FOSTERED: '預かり開始',
+  ADOPTED: '譲渡完了',
+  RETURNED: '返還完了',
+  IN_TRANSIT: '搬送中',
+  SUSPENDED: '公開停止',
+  TRANSFERRED: '他団体へ移譲',
 };
 
 // 「預かり準備中」はDB上に独立したstatus値として持たず、custodianOwnerSubが

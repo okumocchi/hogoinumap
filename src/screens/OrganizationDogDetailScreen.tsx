@@ -2,12 +2,13 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 import { getUrl, remove } from 'aws-amplify/storage';
 import { type FormEvent, useEffect, useState } from 'react';
 import { dataClient } from '../lib/dataClient';
-import type { CustodianType, Dog, MediaType } from '../types/models';
+import type { CustodianType, Dog, DogStatus, MediaType } from '../types/models';
 import {
   calculateAgeAtLabel,
   calculateAgeLabel,
   calculateElapsedLabel,
   custodianTypeLabel,
+  dogStatusComment,
   effectiveDogStatusLabel,
   genderLabel,
 } from '../utils/dog';
@@ -26,6 +27,8 @@ interface CustodyHistoryItem {
   custodianType: CustodianType;
   custodianName: string;
   startDate: string;
+  status?: DogStatus;
+  comment?: string;
 }
 
 interface PendingFosterRequest {
@@ -92,12 +95,18 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
         { sortDirection: 'ASC', authMode }
       );
       setCustodyHistory(
-        result.data.map((item) => ({
-          id: item.id,
-          custodianType: (item.custodianType ?? 'ORGANIZATION') as CustodianType,
-          custodianName: item.custodianName,
-          startDate: item.startDate,
-        }))
+        result.data.map((item) => {
+          const itemStatus = item.status as DogStatus | undefined;
+          const comment = item.comment || (itemStatus ? dogStatusComment[itemStatus] : undefined);
+          return {
+            id: item.id,
+            custodianType: (item.custodianType ?? 'ORGANIZATION') as CustodianType,
+            custodianName: item.custodianName,
+            startDate: item.startDate,
+            status: itemStatus,
+            comment,
+          };
+        })
       );
     } catch (err) {
       console.error('Failed to fetch custody history', err);
@@ -542,7 +551,9 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
                         </button>
                       </span>
                       <span className="org-dog-detail__history-name">
-                        {custodianTypeLabel[item.custodianType]}「{item.custodianName}」
+                        {item.status === 'PROTECTED' || item.status === 'FOSTERED' || item.comment === '保護開始' || item.comment === '預かり開始'
+                          ? `${custodianTypeLabel[item.custodianType]}「${item.custodianName}」`
+                          : (item.comment || (item.status ? dogStatusComment[item.status] : `${custodianTypeLabel[item.custodianType]}「${item.custodianName}」`))}
                       </span>
                     </div>
                   )}

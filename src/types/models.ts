@@ -3,7 +3,7 @@
 
 export type DogGender = 'MALE' | 'FEMALE' | 'UNKNOWN';
 export type DogSize = 'SMALL' | 'MEDIUM' | 'LARGE';
-export type DogStatus = 'PROTECTED' | 'FOSTERED' | 'ADOPTED' | 'RETURNED' | 'IN_TRANSIT' | 'SUSPENDED';
+export type DogStatus = 'PROTECTED' | 'FOSTERED' | 'ADOPTED' | 'RETURNED' | 'IN_TRANSIT' | 'SUSPENDED' | 'TRANSFERRED';
 export type MediaType = 'PHOTO' | 'VIDEO';
 
 export interface Organization {
@@ -67,6 +67,8 @@ export interface CustodyRecord {
   custodianName: string;
   // 保護時、または預かり者が変わった日
   startDate: string;
+  status?: DogStatus;
+  comment?: string;
 }
 
 export interface DogMedia {

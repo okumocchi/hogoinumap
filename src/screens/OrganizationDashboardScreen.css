@@ -609,3 +609,45 @@
 .org-dashboard__modal-confirm:hover {
   opacity: 0.9;
 }
+
+/* フィルター用チェックボックス */
+.org-dashboard__filter-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+  margin-bottom: 16px;
+}
+
+.org-dashboard__filter-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.org-dashboard__filter-checkbox input[type='checkbox'] {
+  cursor: pointer;
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+}
+
+.org-dashboard__volunteer-link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-align: left;
+}
+
+.org-dashboard__volunteer-link:hover {
+  opacity: 0.85;
+}
