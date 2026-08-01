@@ -134,8 +134,10 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
 
 /**
  * Web Push 購読 (Push Subscription) を登録・端末鍵をDynamoDBに保存します。
+ * @param userSub ユーザーID (省略時は現在ログイン中のユーザー)
+ * @param forceSync キャッシュチェックをスキップして強制的にDynamoDBへ保存する場合はtrue
  */
-export async function subscribeUserToPush(userSub?: string): Promise<PushSubscription | null> {
+export async function subscribeUserToPush(userSub?: string, forceSync: boolean = false): Promise<PushSubscription | null> {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
     return null;
   }
@@ -170,15 +172,14 @@ export async function subscribeUserToPush(userSub?: string): Promise<PushSubscri
       const auth = subJson.keys?.auth ?? '';
 
       if (endpoint && p256dh && auth) {
-        // 重複保存の頻度を抑えるためのローカルストレージチェック
         const syncKey = `push_sub_synced:${targetUserSub}:${endpoint}`;
         const lastSynced = localStorage.getItem(syncKey);
         const now = Date.now();
 
-        // 24時間に1回は強制同期（未同期または24時間経過時）
-        if (!lastSynced || now - parseInt(lastSynced, 10) > 86400000) {
+        // forceSyncがtrue、または未同期、または前回の同期から24時間以上経過している場合
+        if (forceSync || !lastSynced || now - parseInt(lastSynced, 10) > 86400000) {
           try {
-            await (dataClient.models.PushSubscription.create as any)(
+            const createResult = await (dataClient.models.PushSubscription.create as any)(
               {
                 userSub: targetUserSub,
                 endpoint,
@@ -187,12 +188,17 @@ export async function subscribeUserToPush(userSub?: string): Promise<PushSubscri
               },
               { authMode: 'userPool' }
             );
-            localStorage.setItem(syncKey, now.toString());
-            console.log('Successfully saved PushSubscription to DynamoDB for user:', targetUserSub);
+
+            if (createResult.errors?.length) {
+              console.warn('PushSubscription creation reported errors:', createResult.errors);
+            } else {
+              localStorage.setItem(syncKey, now.toString());
+              console.log('Successfully saved PushSubscription to DynamoDB for user:', targetUserSub);
+            }
           } catch (dbErr) {
-            // 重複キー等ですでに作成済みの場合は成功とみなして同期タイムスタンプを保存
-            localStorage.setItem(syncKey, now.toString());
-            console.warn('PushSubscription creation in DynamoDB:', dbErr);
+            console.error('Failed to create PushSubscription in DynamoDB:', dbErr);
+            // エラー時はローカルストレージに保存せず次回再試行を許可する
+            localStorage.removeItem(syncKey);
           }
         }
       }

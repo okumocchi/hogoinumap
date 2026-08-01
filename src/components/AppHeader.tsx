@@ -61,7 +61,7 @@ export function AppHeader({
     const enabled = isWebNotificationEnabled();
     setNotificationEnabled(enabled);
     if (result === 'granted') {
-      void subscribeUserToPush();
+      void subscribeUserToPush(undefined, true);
     }
   };
 
@@ -70,7 +70,7 @@ export function AppHeader({
     setWebNotificationEnabled(next);
     setNotificationEnabled(next);
     if (next) {
-      await subscribeUserToPush();
+      await subscribeUserToPush(undefined, true);
     } else {
       await unsubscribeUserFromPush();
     }
