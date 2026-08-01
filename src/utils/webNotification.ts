@@ -139,6 +139,7 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
  */
 export async function subscribeUserToPush(userSub?: string, forceSync: boolean = false): Promise<PushSubscription | null> {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn('[WebPush] PushManager or ServiceWorker is not supported in this browser.');
     return null;
   }
 
@@ -146,12 +147,27 @@ export async function subscribeUserToPush(userSub?: string, forceSync: boolean =
     const registration = await navigator.serviceWorker.ready;
     let subscription = await registration.pushManager.getSubscription();
 
+    // forceSyncの場合は古い無効な購読オブジェクトを一度破棄して再作成する(iOS PWA再インストール対策)
+    if (forceSync && subscription) {
+      console.log('[WebPush] forceSync enabled: Unsubscribing previous subscription...');
+      try {
+        await subscription.unsubscribe();
+      } catch (unsubErr) {
+        console.warn('[WebPush] Failed to unsubscribe old subscription:', unsubErr);
+      }
+      subscription = null;
+    }
+
     if (!subscription) {
+      console.log('[WebPush] Creating new PushSubscription with VAPID key...');
       const applicationServerKey = urlBase64ToUint8Array(DEFAULT_VAPID_PUBLIC_KEY) as unknown as BufferSource;
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey,
       });
+      console.log('[WebPush] New PushSubscription created:', subscription.endpoint);
+    } else {
+      console.log('[WebPush] Existing PushSubscription found:', subscription.endpoint);
     }
 
     let targetUserSub = userSub;
@@ -160,7 +176,7 @@ export async function subscribeUserToPush(userSub?: string, forceSync: boolean =
         const currentUser = await getCurrentUser();
         targetUserSub = currentUser.userId;
       } catch (authErr) {
-        console.log('User is not logged in, skipping DynamoDB PushSubscription save.');
+        console.warn('[WebPush] User is not logged in to Cognito. DynamoDB PushSubscription save skipped.');
       }
     }
 
@@ -176,8 +192,8 @@ export async function subscribeUserToPush(userSub?: string, forceSync: boolean =
         const lastSynced = localStorage.getItem(syncKey);
         const now = Date.now();
 
-        // forceSyncがtrue、または未同期、または前回の同期から24時間以上経過している場合
         if (forceSync || !lastSynced || now - parseInt(lastSynced, 10) > 86400000) {
+          console.log('[WebPush] Saving PushSubscription to DynamoDB for user:', targetUserSub);
           try {
             const createResult = await (dataClient.models.PushSubscription.create as any)(
               {
@@ -190,23 +206,28 @@ export async function subscribeUserToPush(userSub?: string, forceSync: boolean =
             );
 
             if (createResult.errors?.length) {
-              console.warn('PushSubscription creation reported errors:', createResult.errors);
+              console.error('[WebPush] PushSubscription.create returned errors:', createResult.errors);
             } else {
               localStorage.setItem(syncKey, now.toString());
-              console.log('Successfully saved PushSubscription to DynamoDB for user:', targetUserSub);
+              console.log('[WebPush] Successfully saved PushSubscription to DynamoDB:', createResult.data);
             }
           } catch (dbErr) {
-            console.error('Failed to create PushSubscription in DynamoDB:', dbErr);
-            // エラー時はローカルストレージに保存せず次回再試行を許可する
+            console.error('[WebPush] Exception during PushSubscription.create in DynamoDB:', dbErr);
             localStorage.removeItem(syncKey);
           }
+        } else {
+          console.log('[WebPush] PushSubscription sync skipped (already synced recently).');
         }
+      } else {
+        console.warn('[WebPush] Missing subscription keys (endpoint, p256dh, or auth).');
       }
+    } else if (!targetUserSub) {
+      console.log('[WebPush] Note: Push subscription is active locally, but not saved to DynamoDB because user is not authenticated.');
     }
 
     return subscription;
   } catch (error) {
-    console.error('Failed to subscribe user to push notifications:', error);
+    console.error('[WebPush] Failed to subscribe user to push notifications:', error);
     return null;
   }
 }
