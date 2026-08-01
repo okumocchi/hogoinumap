@@ -29,6 +29,20 @@ export function ChatWindow({ threadId, owners, myKey, myName, counterpartName, o
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const hasScrolledRef = useRef(false);
+
+  useEffect(() => {
+    hasScrolledRef.current = false;
+  }, [threadId]);
+
+  useEffect(() => {
+    if (!loading && messages.length > 0 && !hasScrolledRef.current) {
+      hasScrolledRef.current = true;
+      requestAnimationFrame(() => {
+        listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+      });
+    }
+  }, [loading, messages]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -73,10 +87,6 @@ export function ChatWindow({ threadId, owners, myKey, myName, counterpartName, o
     // threadIdはprops経由で決まっており、開いている間に変わることは想定していない
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId]);
-
-  useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
-  }, [messages]);
 
   async function handleSend() {
     const body = draft.trim();
