@@ -8,6 +8,7 @@ import {
   subscribeUserToPush,
   unsubscribeUserFromPush,
 } from '../utils/webNotification';
+import { APP_VERSION } from '../config/version';
 import './AppHeader.css';
 
 export type BrowseView = 'map' | 'list';
@@ -177,6 +178,7 @@ export function AppHeader({
               >
                 ログアウト
               </button>
+              <div className="app-header__dropdown-version">保護犬マップ v{APP_VERSION}</div>
             </div>
           )}
         </div>
