@@ -479,10 +479,34 @@ export function OrganizationDashboardScreen({
     }
   }
 
+  async function getDogOwners(): Promise<string[]> {
+    const ownersSet = new Set<string>();
+
+    try {
+      const { userId, username } = await getCurrentUser();
+      ownersSet.add(`${userId}::${username}`);
+    } catch {
+      // ignore
+    }
+
+    if (organization.ownerSub) {
+      ownersSet.add(organization.ownerSub);
+    }
+
+    approvedVolunteers.forEach((v) => {
+      if (v.isModerator && v.ownerSub) {
+        ownersSet.add(v.ownerSub);
+      }
+    });
+
+    return Array.from(ownersSet);
+  }
+
   async function handleCreate(values: DogFormValues) {
     setError(null);
     setSubmitting(true);
     try {
+      const owners = await getDogOwners();
       const dogInput = {
         organizationId: organization.id,
         ...values,
@@ -492,6 +516,7 @@ export function OrganizationDashboardScreen({
         // 団体の所在地を非正規化してコピーする(スキーマのコメント参照)
         prefecture: organization.prefecture,
         city: organization.city,
+        owners,
       };
       // @aws-amplify/data-schema(1.26.0)には、必須のstringフィールドがcreate()の
       // 引数型でstring[]に誤推論されるバグがある。実行時の動作には影響しないため、
@@ -533,12 +558,14 @@ export function OrganizationDashboardScreen({
       const currentDog = dogs.find((d) => d.id === dogId);
       const isStatusChanged = currentDog && currentDog.status !== values.status;
 
+      const owners = await getDogOwners();
       const dogInput = {
         id: dogId,
         ...values,
         sterilizationDate: values.sterilizationDate || undefined,
         rabiesVaccinationDate: values.rabiesVaccinationDate || undefined,
         mixedVaccinationDate: values.mixedVaccinationDate || undefined,
+        owners,
       };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await dataClient.models.Dog.update(dogInput as any);

@@ -120,10 +120,11 @@ const schema = a.schema({
       size: a.enum(['SMALL', 'MEDIUM', 'LARGE']), // 大きさ
       birthDate: a.date(), // 生年月日(年齢・月齢は表示時に現在日から算出する)
       birthDateEstimated: a.boolean().default(false), // 生年月日が推定かどうか
-      // 性格。団体(owner)に加え、現在この犬を実際に預かっている本人
+      // 性格。団体(owner/owners)に加え、現在この犬を実際に預かっている本人
       // (custodianOwnerSubが一致するボランティア)も編集できる
       personality: a.string().authorization((allow) => [
         allow.owner(),
+        allow.ownersDefinedIn('owners'),
         allow.guest().to(['read']),
         allow.authenticated().to(['read']),
         allow.ownerDefinedIn('custodianOwnerSub').to(['read', 'update']),
@@ -133,7 +134,7 @@ const schema = a.schema({
       // 「預かり準備中」は独立したstatus値としてDBに保存せず、custodianOwnerSubが
       // セットされていてstatusがまだPROTECTEDのままの状態から表示側で導出する(下記参照)。
       // そうすることで、申し出た本人(ボランティア)がstatus自体を書き換える必要がなくなり、
-      // statusは「団体(owner)」または「現在の預け先(custodianOwnerSubが一致する本人)」
+      // statusは「団体(owner/owners)」または「現在の預け先(custodianOwnerSubが一致する本人)」
       // のみが書き込める、という厳密な認可のままにできる。
       //
       // フィールド単位のauthorization()はa.enum()では未対応のため、a.string()で保持し
@@ -145,6 +146,7 @@ const schema = a.schema({
       // ではなく、単一所有者用のownerDefinedInを使う。
       status: a.string().authorization((allow) => [
         allow.owner(),
+        allow.ownersDefinedIn('owners'),
         allow.guest().to(['read']),
         allow.authenticated().to(['read']),
         allow.ownerDefinedIn('custodianOwnerSub').to(['read', 'update']),
@@ -152,6 +154,7 @@ const schema = a.schema({
       seekingAdopter: a.boolean().default(true), // 里親募集中フラグ
       seekingFoster: a.boolean().default(false).authorization((allow) => [
         allow.owner(),
+        allow.ownersDefinedIn('owners'),
         allow.guest().to(['read']),
         allow.authenticated().to(['read']),
         allow.ownerDefinedIn('custodianOwnerSub').to(['read', 'update']),
@@ -163,6 +166,7 @@ const schema = a.schema({
       // 表示上「預かり準備中」に見えてしまう程度の実害に留まり、団体側でいつでもクリアできる。
       custodianOwnerSub: a.string().authorization((allow) => [
         allow.owner(),
+        allow.ownersDefinedIn('owners'),
         allow.guest().to(['read']),
         allow.authenticated().to(['read', 'update']),
       ]),
@@ -176,11 +180,15 @@ const schema = a.schema({
       prefecture: a.string().required(),
       city: a.string().required(),
 
+      // 団体オーナー・作成者・モデレータのsubを保持し、全員に編集権限を付与するマルチオーナー配列
+      owners: a.string().array(),
+
       media: a.hasMany('DogMedia', 'dogId'), // 写真・動画は別モデルで管理(下部参照)
       matches: a.hasMany('Match', 'dogId'),
     })
     .authorization((allow) => [
-      allow.owner(), // 登録した団体が編集
+      allow.owner(), // 登録した本人が編集
+      allow.ownersDefinedIn('owners'), // 団体アカウント・モデレータ等の指定されたオーナーが編集
       allow.guest().to(['read']), // 譲渡希望者・支援者が閲覧
       allow.authenticated().to(['read']),
     ])

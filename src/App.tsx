@@ -86,6 +86,7 @@ function ModeratorOrgDashboardLoader({
           contactPhone: res.data.contactPhone ?? undefined,
           wishlistUrl: res.data.wishlistUrl ?? undefined,
           websiteUrl: res.data.websiteUrl ?? undefined,
+          ownerSub: res.data.ownerSub ?? undefined,
         });
       }
     } catch (err) {

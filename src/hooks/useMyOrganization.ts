@@ -15,6 +15,7 @@ export interface MyOrganization {
   contactPhone?: string;
   wishlistUrl?: string;
   websiteUrl?: string;
+  ownerSub?: string;
 }
 
 // undefined = 判定中, null = 団体アカウントではない(未ログイン含む), MyOrganization = 自団体の情報
@@ -46,6 +47,7 @@ export function useMyOrganization(): [MyOrganization | null | undefined, () => v
               contactPhone: org.contactPhone ?? undefined,
               wishlistUrl: org.wishlistUrl ?? undefined,
               websiteUrl: org.websiteUrl ?? undefined,
+              ownerSub: org.ownerSub ?? undefined,
             }
           : null,
       );
