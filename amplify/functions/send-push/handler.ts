@@ -20,141 +20,166 @@ async function sendPushNotificationToUsers(
   body: string
 ) {
   const tableName = process.env.PUSH_SUBSCRIPTION_TABLE_NAME;
-  if (!tableName) return;
+  if (!tableName || recipientSubs.length === 0) return;
 
-  for (const recipientSub of recipientSubs) {
-    try {
-      const subsResult = await docClient.send(
-        new ScanCommand({
-          TableName: tableName,
-          FilterExpression: 'userSub = :sub',
-          ExpressionAttributeValues: { ':sub': recipientSub },
-        })
-      );
+  // 重複を除外したユニークな recipientSub の集合
+  const targetUserSubSet = new Set(
+    recipientSubs.filter((sub): sub is string => Boolean(sub))
+  );
+  if (targetUserSubSet.size === 0) return;
 
-      const subscriptions = subsResult.Items || [];
-      if (subscriptions.length === 0) continue;
+  console.log(
+    `[sendPush] Target userSubs (${targetUserSubSet.size}):`,
+    Array.from(targetUserSubSet)
+  );
 
-      // endpoint ごとにグループ化し、同一 endpoint の重複アイテムを特定
-      const uniqueSubMap = new Map<string, any>();
-      const duplicateSubIds: string[] = [];
+  try {
+    // 1回の ScanCommand でテーブル内の全 PushSubscription を取得してメモリ上でマッチング
+    const subsResult = await docClient.send(
+      new ScanCommand({
+        TableName: tableName,
+      })
+    );
 
-      for (const sub of subscriptions) {
-        if (!sub.endpoint) continue;
-        if (!uniqueSubMap.has(sub.endpoint)) {
-          uniqueSubMap.set(sub.endpoint, sub);
-        } else if (sub.id) {
-          duplicateSubIds.push(sub.id);
-        }
+    const allItems = subsResult.Items || [];
+    const matchedSubs = allItems.filter(
+      (item) => item.userSub && targetUserSubSet.has(item.userSub)
+    );
+
+    console.log(
+      `[sendPush] Matched subscriptions count in DB: ${matchedSubs.length}`
+    );
+    if (matchedSubs.length === 0) return;
+
+    // (userSub + endpoint) をキーとして重複排除
+    const uniqueSubMap = new Map<string, any>();
+    const duplicateSubIds: string[] = [];
+
+    for (const sub of matchedSubs) {
+      if (!sub.endpoint) continue;
+      const key = `${sub.userSub}:${sub.endpoint}`;
+      if (!uniqueSubMap.has(key)) {
+        uniqueSubMap.set(key, sub);
+      } else if (sub.id) {
+        duplicateSubIds.push(sub.id);
       }
+    }
 
-      // 重複レコードの自動クリーンアップ
+    // 重複アイテムのクリーンアップ
+    if (duplicateSubIds.length > 0) {
+      console.log(
+        `[sendPush] Found ${duplicateSubIds.length} duplicate subscription records. Cleaning up...`
+      );
       for (const dupId of duplicateSubIds) {
         try {
-          const delResult = await docClient.send(
+          const delRes = await docClient.send(
             new DeleteCommand({
               TableName: tableName,
               Key: { id: dupId },
               ReturnValues: 'ALL_OLD',
             })
           );
-          if (delResult.Attributes) {
+          if (delRes.Attributes) {
             console.log(
-              `Cleaned up duplicate push subscription record: ${dupId}`
+              `[sendPush] Cleaned up duplicate record ID: ${dupId}`
             );
           } else {
             console.warn(
-              `DeleteCommand for duplicate id ${dupId} matched 0 items in DynamoDB.`
+              `[sendPush] DeleteCommand matched 0 items for duplicate ID: ${dupId}`
             );
           }
-        } catch (dupDelErr) {
+        } catch (e) {
           console.error(
-            `Failed to clean up duplicate subscription ${dupId}:`,
-            dupDelErr
+            `[sendPush] Failed to delete duplicate ID ${dupId}:`,
+            e
           );
         }
       }
+    }
 
-      // ユニークな各 endpoint に対してプッシュ通知を送信
-      for (const sub of uniqueSubMap.values()) {
-        try {
-          const pushSubscription = {
-            endpoint: sub.endpoint,
-            keys: {
-              p256dh: sub.p256dh,
-              auth: sub.auth,
-            },
-          };
+    // ユニーク端末へ送信
+    console.log(
+      `[sendPush] Sending notification to ${uniqueSubMap.size} unique endpoints...`
+    );
 
-          const payload = JSON.stringify({
-            title,
-            body,
-            badgeCount: 1,
-            url: '/',
-          });
+    for (const sub of uniqueSubMap.values()) {
+      try {
+        const pushSubscription = {
+          endpoint: sub.endpoint,
+          keys: {
+            p256dh: sub.p256dh,
+            auth: sub.auth,
+          },
+        };
 
-          await webpush.sendNotification(pushSubscription, payload);
-          console.log(
-            `Push notification sent to ${recipientSub} (endpoint: ${sub.endpoint.slice(-10)})`
+        const payload = JSON.stringify({
+          title,
+          body,
+          badgeCount: 1,
+          url: '/',
+        });
+
+        await webpush.sendNotification(pushSubscription, payload);
+        console.log(
+          `[sendPush] Success sent to userSub: ${sub.userSub} (id: ${sub.id})`
+        );
+      } catch (err: any) {
+        const statusCode = err?.statusCode || err?.status;
+        const errBody =
+          typeof err?.body === 'string' ? err.body.toLowerCase() : '';
+        const errMessage =
+          typeof err?.message === 'string' ? err.message.toLowerCase() : '';
+
+        const isInvalidOrExpired =
+          statusCode === 410 ||
+          statusCode === 404 ||
+          statusCode === 400 ||
+          errBody.includes('notregistered') ||
+          errBody.includes('invalidregistration') ||
+          errMessage.includes('expired') ||
+          errMessage.includes('invalid');
+
+        if (isInvalidOrExpired && sub.id) {
+          console.warn(
+            `[sendPush] Invalid/Expired subscription (status ${statusCode}), deleting ID: ${sub.id}`
           );
-        } catch (err: any) {
-          const statusCode = err?.statusCode || err?.status;
-          const errBody =
-            typeof err?.body === 'string' ? err.body.toLowerCase() : '';
-          const errMessage =
-            typeof err?.message === 'string' ? err.message.toLowerCase() : '';
-
-          const isInvalidOrExpired =
-            statusCode === 410 ||
-            statusCode === 404 ||
-            statusCode === 400 ||
-            errBody.includes('notregistered') ||
-            errBody.includes('invalidregistration') ||
-            errMessage.includes('expired') ||
-            errMessage.includes('invalid');
-
-          if (isInvalidOrExpired && sub.id) {
-            console.warn(
-              `Push subscription is invalid or expired (statusCode: ${statusCode}). Deleting subscription ID: ${sub.id}`
+          try {
+            const delRes = await docClient.send(
+              new DeleteCommand({
+                TableName: tableName,
+                Key: { id: sub.id },
+                ReturnValues: 'ALL_OLD',
+              })
             );
-            try {
-              const delResult = await docClient.send(
-                new DeleteCommand({
-                  TableName: tableName,
-                  Key: { id: sub.id },
-                  ReturnValues: 'ALL_OLD',
-                })
+            if (delRes.Attributes) {
+              console.log(
+                `[sendPush] Successfully deleted expired subscription ID: ${sub.id}`
               );
-              if (delResult.Attributes) {
-                console.log(
-                  `Successfully deleted invalid push subscription: ${sub.id}`
-                );
-              } else {
-                console.warn(
-                  `DeleteCommand for invalid sub id ${sub.id} matched 0 items in DynamoDB.`
-                );
-              }
-            } catch (deleteErr) {
-              console.error(
-                `Failed to delete subscription ${sub.id}:`,
-                deleteErr
+            } else {
+              console.warn(
+                `[sendPush] DeleteCommand matched 0 items for expired ID: ${sub.id}`
               );
             }
-          } else {
-            console.error('Failed to send push notification', err);
+          } catch (delErr) {
+            console.error(
+              `[sendPush] Failed to delete expired ID ${sub.id}:`,
+              delErr
+            );
           }
+        } else {
+          console.error(`[sendPush] Failed to send push to ID ${sub.id}:`, err);
         }
       }
-    } catch (err) {
-      console.error(
-        `Error processing push subscriptions for ${recipientSub}:`,
-        err
-      );
     }
+  } catch (err) {
+    console.error('[sendPush] Error in sendPushNotificationToUsers:', err);
   }
 }
 
 export const handler: DynamoDBStreamHandler = async (event) => {
+  console.log(
+    `[sendPush] Handler invoked with ${event.Records?.length || 0} stream records.`
+  );
   try {
     const privateKey = process.env.VAPID_PRIVATE_KEY;
     const publicKey = process.env.VAPID_PUBLIC_KEY;
@@ -172,6 +197,10 @@ export const handler: DynamoDBStreamHandler = async (event) => {
 
     for (const record of event.Records) {
       try {
+        console.log(
+          `[sendPush] Stream record eventName: ${record.eventName}, eventSourceARN: ${record.eventSourceARN}`
+        );
+
         if (record.eventName !== 'INSERT' || !record.dynamodb?.NewImage) {
           continue;
         }
