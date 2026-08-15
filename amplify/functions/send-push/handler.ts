@@ -1,6 +1,6 @@
 import type { DynamoDBStreamHandler } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, ScanCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import webpush from 'web-push';
 
 const ddbClient = new DynamoDBClient({});
@@ -68,8 +68,33 @@ export const handler: DynamoDBStreamHandler = async (event) => {
 
             await webpush.sendNotification(pushSubscription, payload);
             console.log(`Push notification sent to ${recipientSub}`);
-          } catch (err) {
-            console.error('Failed to send push notification', err);
+          } catch (err: any) {
+            const statusCode = err?.statusCode || err?.status;
+            if (statusCode === 410 || statusCode === 404) {
+              console.warn(
+                `Push subscription is invalid or expired (statusCode: ${statusCode}). Deleting subscription ID: ${sub.id}`
+              );
+              if (sub.id) {
+                try {
+                  await docClient.send(
+                    new DeleteCommand({
+                      TableName: tableName,
+                      Key: { id: sub.id },
+                    })
+                  );
+                  console.log(
+                    `Successfully deleted invalid push subscription: ${sub.id}`
+                  );
+                } catch (deleteErr) {
+                  console.error(
+                    `Failed to delete subscription ${sub.id}:`,
+                    deleteErr
+                  );
+                }
+              }
+            } else {
+              console.error('Failed to send push notification', err);
+            }
           }
         }
       } catch (err) {

@@ -56,9 +56,9 @@ backend.sendPushFunction.resources.lambda.addEventSource(
   })
 );
 
-// PushSubscription テーブルに対する読み取り権限と環境変数をアタッチ
+// PushSubscription テーブルに対する読み書き権限と環境変数をアタッチ
 const pushSubTable = backend.data.resources.tables['PushSubscription'];
-pushSubTable.grantReadData(backend.sendPushFunction.resources.lambda);
+pushSubTable.grantReadWriteData(backend.sendPushFunction.resources.lambda);
 (backend.sendPushFunction.resources.lambda as lambda.Function).addEnvironment(
   'PUSH_SUBSCRIPTION_TABLE_NAME',
   pushSubTable.tableName

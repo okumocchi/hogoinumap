@@ -8,37 +8,51 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  if (!event.data) return;
+  event.waitUntil(handlePush(event));
+});
 
-  try {
-    const data = event.data.json();
-    const title = data.title || '保護犬マップ';
-    const options = {
-      body: data.body || '新しい通知があります',
-      icon: data.icon || '/icon.png',
-      badge: '/icon.png',
-      data: data.url || '/',
-    };
+async function handlePush(event) {
+  let data = {};
 
-    const promises = [self.registration.showNotification(title, options)];
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch (err) {
+      // JSONでない場合はテキストとして扱う(デバッグ・DevToolsテスト対策)
+      console.warn('Push data is not JSON, falling back to text', err);
+      const text = event.data.text();
+      data = { title: '保護犬マップ', body: text };
+    }
+  }
 
-    // App Badge API (setAppBadge / clearAppBadge)
-    if ('setAppBadge' in self.navigator) {
+  const title = data.title || '保護犬マップ';
+  const options = {
+    body: data.body || '新しい通知があります',
+    icon: data.icon || '/icon.png',
+    badge: '/icon.png',
+    data: data.url || '/',
+  };
+
+  const results = await Promise.allSettled([
+    self.registration.showNotification(title, options),
+    ...(('setAppBadge' in self.navigator) ? [(() => {
       const badgeVal = data.badgeCount ?? data.unreadCount ?? data.badge;
       if (typeof badgeVal === 'number') {
-        if (badgeVal > 0) {
-          promises.push(self.navigator.setAppBadge(badgeVal));
-        } else {
-          promises.push(self.navigator.clearAppBadge());
-        }
+        return badgeVal > 0
+          ? self.navigator.setAppBadge(badgeVal)
+          : self.navigator.clearAppBadge();
       }
-    }
+      return Promise.resolve();
+    })()] : []),
+  ]);
 
-    event.waitUntil(Promise.allSettled(promises));
-  } catch (err) {
-    console.error('Error handling push event', err);
-  }
-});
+  // 失敗したものがあればログに残す(握りつぶさない)
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      console.error(`Push handling task ${i} failed:`, r.reason);
+    }
+  });
+}
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
