@@ -33,17 +33,16 @@ async function handlePush(event) {
     data: data.url || '/',
   };
 
+  const rawBadgeVal = data.badgeCount ?? data.unreadCount ?? (typeof data.badge === 'number' ? data.badge : undefined);
+  const badgeVal = typeof rawBadgeVal === 'number' ? rawBadgeVal : 1;
+
   const results = await Promise.allSettled([
     self.registration.showNotification(title, options),
-    ...(('setAppBadge' in self.navigator) ? [(() => {
-      const badgeVal = data.badgeCount ?? data.unreadCount ?? data.badge;
-      if (typeof badgeVal === 'number') {
-        return badgeVal > 0
-          ? self.navigator.setAppBadge(badgeVal)
-          : self.navigator.clearAppBadge();
-      }
-      return Promise.resolve();
-    })()] : []),
+    ...(('setAppBadge' in self.navigator) ? [
+      badgeVal > 0
+        ? self.navigator.setAppBadge(badgeVal)
+        : self.navigator.clearAppBadge()
+    ] : []),
   ]);
 
   // 失敗したものがあればログに残す(握りつぶさない)

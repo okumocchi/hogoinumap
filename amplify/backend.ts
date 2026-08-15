@@ -64,5 +64,35 @@ pushSubTable.grantReadWriteData(backend.sendPushFunction.resources.lambda);
   pushSubTable.tableName
 );
 
+// Dog テーブルの DynamoDB Stream を有効化し Lambda 関数にアタッチ
+const dogTable = backend.data.resources.tables['Dog'];
+const cfnDogTable = dogTable.node.defaultChild as dynamodb.CfnTable;
+if (cfnDogTable) {
+  cfnDogTable.streamSpecification = {
+    streamViewType: dynamodb.StreamViewType.NEW_IMAGE,
+  };
+}
+
+backend.sendPushFunction.resources.lambda.addEventSource(
+  new lambdaEventSources.DynamoEventSource(dogTable, {
+    startingPosition: lambda.StartingPosition.LATEST,
+  })
+);
+
+// Affiliation テーブルおよび Organization テーブルへの読み取り権限と環境変数をアタッチ
+const affiliationTable = backend.data.resources.tables['Affiliation'];
+affiliationTable.grantReadData(backend.sendPushFunction.resources.lambda);
+(backend.sendPushFunction.resources.lambda as lambda.Function).addEnvironment(
+  'AFFILIATION_TABLE_NAME',
+  affiliationTable.tableName
+);
+
+const orgTable = backend.data.resources.tables['Organization'];
+orgTable.grantReadData(backend.sendPushFunction.resources.lambda);
+(backend.sendPushFunction.resources.lambda as lambda.Function).addEnvironment(
+  'ORGANIZATION_TABLE_NAME',
+  orgTable.tableName
+);
+
 
 
