@@ -51,15 +51,22 @@ async function sendPushNotificationToUsers(
       // 重複レコードの自動クリーンアップ
       for (const dupId of duplicateSubIds) {
         try {
-          await docClient.send(
+          const delResult = await docClient.send(
             new DeleteCommand({
               TableName: tableName,
               Key: { id: dupId },
+              ReturnValues: 'ALL_OLD',
             })
           );
-          console.log(
-            `Cleaned up duplicate push subscription record: ${dupId}`
-          );
+          if (delResult.Attributes) {
+            console.log(
+              `Cleaned up duplicate push subscription record: ${dupId}`
+            );
+          } else {
+            console.warn(
+              `DeleteCommand for duplicate id ${dupId} matched 0 items in DynamoDB.`
+            );
+          }
         } catch (dupDelErr) {
           console.error(
             `Failed to clean up duplicate subscription ${dupId}:`,
@@ -111,15 +118,22 @@ async function sendPushNotificationToUsers(
               `Push subscription is invalid or expired (statusCode: ${statusCode}). Deleting subscription ID: ${sub.id}`
             );
             try {
-              await docClient.send(
+              const delResult = await docClient.send(
                 new DeleteCommand({
                   TableName: tableName,
                   Key: { id: sub.id },
+                  ReturnValues: 'ALL_OLD',
                 })
               );
-              console.log(
-                `Successfully deleted invalid push subscription: ${sub.id}`
-              );
+              if (delResult.Attributes) {
+                console.log(
+                  `Successfully deleted invalid push subscription: ${sub.id}`
+                );
+              } else {
+                console.warn(
+                  `DeleteCommand for invalid sub id ${sub.id} matched 0 items in DynamoDB.`
+                );
+              }
             } catch (deleteErr) {
               console.error(
                 `Failed to delete subscription ${sub.id}:`,

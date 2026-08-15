@@ -193,26 +193,40 @@ export async function subscribeUserToPush(userSub?: string, forceSync: boolean =
         const now = Date.now();
 
         if (forceSync || !lastSynced || now - parseInt(lastSynced, 10) > 86400000) {
-          console.log('[WebPush] Saving PushSubscription to DynamoDB for user:', targetUserSub);
+          console.log('[WebPush] Syncing PushSubscription to DynamoDB for user:', targetUserSub);
           try {
-            const createResult = await (dataClient.models.PushSubscription.create as any)(
-              {
-                userSub: targetUserSub,
-                endpoint,
-                p256dh,
-                auth,
+            // 既存の同一 endpoint レコードが存在するか確認
+            const existingRes = await (dataClient.models.PushSubscription.list as any)({
+              filter: {
+                userSub: { eq: targetUserSub },
+                endpoint: { eq: endpoint },
               },
-              { authMode: 'userPool' }
-            );
+              authMode: 'userPool',
+            });
 
-            if (createResult.errors?.length) {
-              console.error('[WebPush] PushSubscription.create returned errors:', createResult.errors);
-            } else {
+            if (existingRes.data && existingRes.data.length > 0) {
+              console.log('[WebPush] PushSubscription already exists in DynamoDB. Skipping create:', existingRes.data[0].id);
               localStorage.setItem(syncKey, now.toString());
-              console.log('[WebPush] Successfully saved PushSubscription to DynamoDB:', createResult.data);
+            } else {
+              const createResult = await (dataClient.models.PushSubscription.create as any)(
+                {
+                  userSub: targetUserSub,
+                  endpoint,
+                  p256dh,
+                  auth,
+                },
+                { authMode: 'userPool' }
+              );
+
+              if (createResult.errors?.length) {
+                console.error('[WebPush] PushSubscription.create returned errors:', createResult.errors);
+              } else {
+                localStorage.setItem(syncKey, now.toString());
+                console.log('[WebPush] Successfully saved PushSubscription to DynamoDB:', createResult.data);
+              }
             }
           } catch (dbErr) {
-            console.error('[WebPush] Exception during PushSubscription.create in DynamoDB:', dbErr);
+            console.error('[WebPush] Exception during PushSubscription sync in DynamoDB:', dbErr);
             localStorage.removeItem(syncKey);
           }
         } else {
