@@ -1,5 +1,5 @@
 import type { DynamoDBStreamHandler } from 'aws-lambda';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, DescribeTableCommand } from '@aws-sdk/client-dynamodb';
 import {
   DynamoDBDocumentClient,
   ScanCommand,
@@ -99,6 +99,21 @@ async function sendPushNotificationToUsers(
       });
     }
 
+    // テーブルの実際の KeySchema を取得して物理削除用のキー構造を確実化
+    let keySchema: { AttributeName: string; KeyType: string }[] = [];
+    try {
+      const tableDesc = await ddbClient.send(
+        new DescribeTableCommand({ TableName: tableName })
+      );
+      keySchema = (tableDesc.Table?.KeySchema as any) || [];
+      console.log(
+        `[sendPush] Table KeySchema:`,
+        JSON.stringify(keySchema)
+      );
+    } catch (descErr) {
+      console.error('[sendPush] Failed to describe table:', descErr);
+    }
+
     // 過去の古い大量ゴミレコードの一括自動クリーンアップ
     if (obsoleteItems.length > 0) {
       console.log(
@@ -106,8 +121,19 @@ async function sendPushNotificationToUsers(
       );
       const results = await Promise.allSettled(
         obsoleteItems.map(async (item) => {
-          let keyObj: Record<string, any> = { id: item.id };
-          let res = await docClient.send(
+          const keyObj: Record<string, any> = {};
+          if (keySchema.length > 0) {
+            for (const k of keySchema) {
+              if (k.AttributeName && item[k.AttributeName] !== undefined) {
+                keyObj[k.AttributeName] = item[k.AttributeName];
+              }
+            }
+          }
+          if (Object.keys(keyObj).length === 0) {
+            keyObj.id = item.id;
+          }
+
+          const res = await docClient.send(
             new DeleteCommand({
               TableName: tableName,
               Key: keyObj,
@@ -115,18 +141,7 @@ async function sendPushNotificationToUsers(
             })
           );
 
-          // もし id 単体で物理削除属性が返らなかった場合、id + userSub 複合キーで削除試行
-          if (!res.Attributes && item.userSub) {
-            keyObj = { id: item.id, userSub: item.userSub };
-            res = await docClient.send(
-              new DeleteCommand({
-                TableName: tableName,
-                Key: keyObj,
-                ReturnValues: 'ALL_OLD',
-              })
-            );
-          }
-          return { id: item.id, attributes: res.Attributes };
+          return { id: item.id, attributes: res.Attributes, keyUsed: keyObj };
         })
       );
 
