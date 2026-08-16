@@ -47,17 +47,27 @@ export function useDashboardBadges(
   const [badges, setBadges] = useState<DashboardBadges>(INITIAL_STATE);
   const prevBadgesRef = useRef<DashboardBadges | null>(null);
 
+  const pushSyncedRef = useRef<string | null>(null);
+
   const load = useCallback(async () => {
     const isLoggedIn = !!organizationId || !!volunteerId;
     if (!isLoggedIn) {
       setBadges(INITIAL_STATE);
       prevBadgesRef.current = null;
+      pushSyncedRef.current = null;
       void updateAppBadge(0);
       return;
     }
 
-    // ログイン済みかつWEB通知が許可・有効な場合、端末情報(PushSubscription)をDynamoDBに同期
-    if (isWebNotificationEnabled()) {
+    // ログイン状態になった初回のみ、端末情報(PushSubscription)をDynamoDBに同期
+    const currentAccountKey = organizationId
+      ? `org:${organizationId}`
+      : `vol:${volunteerId}`;
+    if (
+      isWebNotificationEnabled() &&
+      pushSyncedRef.current !== currentAccountKey
+    ) {
+      pushSyncedRef.current = currentAccountKey;
       void subscribeUserToPush();
     }
 
@@ -263,11 +273,16 @@ export function useDashboardBadges(
     }
   }, [organizationId, volunteerId, activeChatThreadId]);
 
+  const loadRef = useRef(load);
+  useEffect(() => {
+    loadRef.current = load;
+  }, [load]);
+
   useEffect(() => {
     let cancelled = false;
 
     async function safeLoad() {
-      if (!cancelled) await load();
+      if (!cancelled) await loadRef.current();
     }
 
     safeLoad();
@@ -277,6 +292,7 @@ export function useDashboardBadges(
       if (payload.event === 'signedIn') safeLoad();
       if (payload.event === 'signedOut') {
         prevBadgesRef.current = null;
+        pushSyncedRef.current = null;
         setBadges(INITIAL_STATE);
         void updateAppBadge(0);
       }

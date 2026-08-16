@@ -53,12 +53,17 @@ async function sendPushNotificationToUsers(
 
     console.log(
       `[sendPush] Sample subscription items in DB (first 3):`,
-      matchedSubs.slice(0, 3).map((item) => ({
-        id: item.id,
-        userSub: item.userSub,
-        endpoint: item.endpoint?.slice(-25),
-        createdAt: item.createdAt,
-      }))
+      JSON.stringify(
+        matchedSubs.slice(0, 3).map((item) => ({
+          id: item.id,
+          userSub: item.userSub,
+          endpoint: item.endpoint?.slice(-25),
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+        })),
+        null,
+        2
+      )
     );
 
     // ユーザーごとにサブスクリプションをグループ化し、最新の2件（PC・スマホ等）のみ保持
