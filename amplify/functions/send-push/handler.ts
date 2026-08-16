@@ -77,7 +77,7 @@ async function sendPushNotificationToUsers(
     }
 
     const uniqueSubMap = new Map<string, any>();
-    const obsoleteSubIds: string[] = [];
+    const obsoleteItems: any[] = [];
 
     for (const subs of userSubGroups.values()) {
       // 作成日時/更新日時で降順ソート（最新アイテムを先頭に）
@@ -93,34 +93,50 @@ async function sendPushNotificationToUsers(
           if (sub.endpoint && !uniqueSubMap.has(sub.endpoint)) {
             uniqueSubMap.set(sub.endpoint, sub);
           }
-        } else if (sub.id) {
-          obsoleteSubIds.push(sub.id);
+        } else {
+          obsoleteItems.push(sub);
         }
       });
     }
 
     // 過去の古い大量ゴミレコードの一括自動クリーンアップ
-    if (obsoleteSubIds.length > 0) {
+    if (obsoleteItems.length > 0) {
+      console.log(
+        `[sendPush] Attempting to purge ${obsoleteItems.length} obsolete records...`
+      );
       const results = await Promise.allSettled(
-        obsoleteSubIds.map(async (dupId) => {
-          const res = await docClient.send(
+        obsoleteItems.map(async (item) => {
+          let keyObj: Record<string, any> = { id: item.id };
+          let res = await docClient.send(
             new DeleteCommand({
               TableName: tableName,
-              Key: { id: dupId },
+              Key: keyObj,
               ReturnValues: 'ALL_OLD',
             })
           );
-          return { id: dupId, attributes: res.Attributes };
+
+          // もし id 単体で物理削除属性が返らなかった場合、id + userSub 複合キーで削除試行
+          if (!res.Attributes && item.userSub) {
+            keyObj = { id: item.id, userSub: item.userSub };
+            res = await docClient.send(
+              new DeleteCommand({
+                TableName: tableName,
+                Key: keyObj,
+                ReturnValues: 'ALL_OLD',
+              })
+            );
+          }
+          return { id: item.id, attributes: res.Attributes };
         })
       );
 
       const deletedCount = results.filter(
         (r) => r.status === 'fulfilled' && (r.value as any).attributes
       ).length;
-      const unmatchedCount = obsoleteSubIds.length - deletedCount;
+      const unmatchedCount = obsoleteItems.length - deletedCount;
 
       console.log(
-        `[sendPush] Purged ${deletedCount}/${obsoleteSubIds.length} obsolete records (Unmatched/Failed: ${unmatchedCount}).`
+        `[sendPush] Purged ${deletedCount}/${obsoleteItems.length} obsolete records (Unmatched/Failed: ${unmatchedCount}).`
       );
     }
 
