@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { dataClient } from '../lib/dataClient';
 import { isWebNotificationEnabled, sendWebNotification, subscribeUserToPush, updateAppBadge } from '../utils/webNotification';
 
-const POLL_INTERVAL_MS = 6000;
+const POLL_INTERVAL_MS = 30000;
 
 export interface ChatThreadItem {
   id: string;
