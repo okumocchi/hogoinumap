@@ -204,6 +204,7 @@ export async function subscribeUserToPush(userSub?: string, forceSync: boolean =
           targetUserSub
         );
         try {
+          const now = Date.now();
           // 連打防止のため即座にローカルストレージへ同期済みフラグを保存
           localStorage.setItem(syncKey, now.toString());
 
