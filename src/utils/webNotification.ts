@@ -189,48 +189,52 @@ export async function subscribeUserToPush(userSub?: string, forceSync: boolean =
 
       if (endpoint && p256dh && auth) {
         const syncKey = `push_sub_synced:${targetUserSub}:${endpoint}`;
-        const lastSynced = localStorage.getItem(syncKey);
-        const now = Date.now();
+        const hasSynced = localStorage.getItem(syncKey);
 
-        if (forceSync || !lastSynced || now - parseInt(lastSynced, 10) > 86400000) {
-          console.log('[WebPush] Syncing PushSubscription to DynamoDB for user:', targetUserSub);
-          try {
-            // 既存の同一 endpoint レコードが存在するか確認
-            const existingRes = await (dataClient.models.PushSubscription.list as any)({
-              filter: {
-                userSub: { eq: targetUserSub },
-                endpoint: { eq: endpoint },
-              },
-              authMode: 'userPool',
-            });
+        // すでにこの端末・セッションで同期済みであれば絶対に新規作成しない
+        if (hasSynced && !forceSync) {
+          console.log(
+            '[WebPush] PushSubscription already synced locally. Skipping DB create.'
+          );
+          return subscription;
+        }
 
-            if (existingRes.data && existingRes.data.length > 0) {
-              console.log('[WebPush] PushSubscription already exists in DynamoDB. Skipping create:', existingRes.data[0].id);
-              localStorage.setItem(syncKey, now.toString());
-            } else {
-              const createResult = await (dataClient.models.PushSubscription.create as any)(
-                {
-                  userSub: targetUserSub,
-                  endpoint,
-                  p256dh,
-                  auth,
-                },
-                { authMode: 'userPool' }
-              );
+        console.log(
+          '[WebPush] Saving PushSubscription to DynamoDB for user:',
+          targetUserSub
+        );
+        try {
+          // 連打防止のため即座にローカルストレージへ同期済みフラグを保存
+          localStorage.setItem(syncKey, now.toString());
 
-              if (createResult.errors?.length) {
-                console.error('[WebPush] PushSubscription.create returned errors:', createResult.errors);
-              } else {
-                localStorage.setItem(syncKey, now.toString());
-                console.log('[WebPush] Successfully saved PushSubscription to DynamoDB:', createResult.data);
-              }
-            }
-          } catch (dbErr) {
-            console.error('[WebPush] Exception during PushSubscription sync in DynamoDB:', dbErr);
-            localStorage.removeItem(syncKey);
+          const createResult = await (
+            dataClient.models.PushSubscription.create as any
+          )(
+            {
+              userSub: targetUserSub,
+              endpoint,
+              p256dh,
+              auth,
+            },
+            { authMode: 'userPool' }
+          );
+
+          if (createResult.errors?.length) {
+            console.error(
+              '[WebPush] PushSubscription.create returned errors:',
+              createResult.errors
+            );
+          } else {
+            console.log(
+              '[WebPush] Successfully saved PushSubscription to DynamoDB:',
+              createResult.data
+            );
           }
-        } else {
-          console.log('[WebPush] PushSubscription sync skipped (already synced recently).');
+        } catch (dbErr) {
+          console.error(
+            '[WebPush] Exception during PushSubscription sync in DynamoDB:',
+            dbErr
+          );
         }
       } else {
         console.warn('[WebPush] Missing subscription keys (endpoint, p256dh, or auth).');
