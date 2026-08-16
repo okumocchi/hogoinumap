@@ -88,7 +88,7 @@
 }
 
 .org-dashboard__edit-button:hover {
-  transform: scale(1.05);
+  transform: scaleX(-1) scale(1.05);
 }
 
 .org-dashboard__org-form {

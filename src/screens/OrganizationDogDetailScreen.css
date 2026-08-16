@@ -73,7 +73,7 @@
 }
 
 .org-dog-detail__edit-button:hover {
-  transform: scale(1.05);
+  transform: scaleX(-1) scale(1.05);
 }
 
 .org-dog-detail__add-media-button {
@@ -288,7 +288,7 @@
 
 .org-dog-detail__media-edit-button:hover {
   background: rgba(0, 0, 0, 0.85);
-  transform: scale(1.05);
+  transform: scaleX(-1) scale(1.05);
 }
 
 .org-dog-detail__media-container {

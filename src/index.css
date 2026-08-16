@@ -107,3 +107,26 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* 編集ボタン等のペンアイコンの左右反転 */
+.volunteer-dashboard__icon-edit-button,
+.org-dashboard__edit-button,
+.dog-detail__icon-edit-button,
+.media-card__edit-button,
+.org-dog-detail__edit-button,
+.org-dog-detail__media-edit-button,
+.org-dog-detail__history-edit-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: scaleX(-1);
+}
+
+.volunteer-dashboard__icon-edit-button:hover,
+.org-dashboard__edit-button:hover,
+.dog-detail__icon-edit-button:hover,
+.media-card__edit-button:hover,
+.org-dog-detail__edit-button:hover,
+.org-dog-detail__media-edit-button:hover {
+  transform: scaleX(-1) scale(1.05);
+}

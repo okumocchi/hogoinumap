@@ -72,7 +72,7 @@
 }
 
 .volunteer-dashboard__icon-edit-button:hover {
-  transform: scale(1.05);
+  transform: scaleX(-1) scale(1.05);
 }
 
 .volunteer-dashboard__facts {

@@ -153,7 +153,7 @@
 }
 
 .dog-detail__icon-edit-button:hover {
-  transform: scale(1.05);
+  transform: scaleX(-1) scale(1.05);
 }
 
 .dog-detail__inline-form {
@@ -540,7 +540,7 @@
 
 .media-card__edit-button:hover {
   background: rgba(0, 0, 0, 0.85);
-  transform: scale(1.05);
+  transform: scaleX(-1) scale(1.05);
 }
 
 .dog-detail__modal-overlay {
