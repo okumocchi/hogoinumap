@@ -51,50 +51,72 @@ async function sendPushNotificationToUsers(
     );
     if (matchedSubs.length === 0) return;
 
-    // (userSub + endpoint) をキーとして重複排除
-    const uniqueSubMap = new Map<string, any>();
-    const duplicateSubIds: string[] = [];
+    console.log(
+      `[sendPush] Sample subscription items in DB (first 3):`,
+      matchedSubs.slice(0, 3).map((item) => ({
+        id: item.id,
+        userSub: item.userSub,
+        endpoint: item.endpoint?.slice(-25),
+        createdAt: item.createdAt,
+      }))
+    );
 
+    // ユーザーごとにサブスクリプションをグループ化し、最新の2件（PC・スマホ等）のみ保持
+    const userSubGroups = new Map<string, any[]>();
     for (const sub of matchedSubs) {
-      if (!sub.endpoint) continue;
-      const key = `${sub.userSub}:${sub.endpoint}`;
-      if (!uniqueSubMap.has(key)) {
-        uniqueSubMap.set(key, sub);
-      } else if (sub.id) {
-        duplicateSubIds.push(sub.id);
+      if (!sub.userSub) continue;
+      if (!userSubGroups.has(sub.userSub)) {
+        userSubGroups.set(sub.userSub, []);
       }
+      userSubGroups.get(sub.userSub)!.push(sub);
     }
 
-    // 重複アイテムのクリーンアップ
-    if (duplicateSubIds.length > 0) {
-      console.log(
-        `[sendPush] Found ${duplicateSubIds.length} duplicate subscription records. Cleaning up...`
-      );
-      for (const dupId of duplicateSubIds) {
-        try {
-          const delRes = await docClient.send(
+    const uniqueSubMap = new Map<string, any>();
+    const obsoleteSubIds: string[] = [];
+
+    for (const subs of userSubGroups.values()) {
+      // 作成日時/更新日時で降順ソート（最新アイテムを先頭に）
+      subs.sort((a, b) => {
+        const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+        const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+        return timeB - timeA;
+      });
+
+      const KEEP_LIMIT = 2; // 1ユーザーあたり保持する最新端末数
+      subs.forEach((sub, index) => {
+        if (index < KEEP_LIMIT) {
+          if (sub.endpoint && !uniqueSubMap.has(sub.endpoint)) {
+            uniqueSubMap.set(sub.endpoint, sub);
+          }
+        } else if (sub.id) {
+          obsoleteSubIds.push(sub.id);
+        }
+      });
+    }
+
+    // 過去の古い大量ゴミレコードの一括自動クリーンアップ
+    if (obsoleteSubIds.length > 0) {
+      const results = await Promise.allSettled(
+        obsoleteSubIds.map(async (dupId) => {
+          const res = await docClient.send(
             new DeleteCommand({
               TableName: tableName,
               Key: { id: dupId },
               ReturnValues: 'ALL_OLD',
             })
           );
-          if (delRes.Attributes) {
-            console.log(
-              `[sendPush] Cleaned up duplicate record ID: ${dupId}`
-            );
-          } else {
-            console.warn(
-              `[sendPush] DeleteCommand matched 0 items for duplicate ID: ${dupId}`
-            );
-          }
-        } catch (e) {
-          console.error(
-            `[sendPush] Failed to delete duplicate ID ${dupId}:`,
-            e
-          );
-        }
-      }
+          return { id: dupId, attributes: res.Attributes };
+        })
+      );
+
+      const deletedCount = results.filter(
+        (r) => r.status === 'fulfilled' && (r.value as any).attributes
+      ).length;
+      const unmatchedCount = obsoleteSubIds.length - deletedCount;
+
+      console.log(
+        `[sendPush] Purged ${deletedCount}/${obsoleteSubIds.length} obsolete records (Unmatched/Failed: ${unmatchedCount}).`
+      );
     }
 
     // ユニーク端末へ送信
