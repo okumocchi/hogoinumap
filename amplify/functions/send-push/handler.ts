@@ -34,20 +34,31 @@ async function sendPushNotificationToUsers(
   );
 
   try {
-    // 1回の ScanCommand でテーブル内の全 PushSubscription を取得してメモリ上でマッチング
-    const subsResult = await docClient.send(
-      new ScanCommand({
-        TableName: tableName,
-      })
-    );
+    // ページネーション (LastEvaluatedKey) を用いて 1MB の上限を越えて全件取得
+    let allItems: any[] = [];
+    let lastEvaluatedKey: any = undefined;
 
-    const allItems = subsResult.Items || [];
+    do {
+      const scanRes: any = await docClient.send(
+        new ScanCommand({
+          TableName: tableName,
+          ExclusiveStartKey: lastEvaluatedKey,
+        })
+      );
+      if (scanRes.Items) {
+        allItems = allItems.concat(scanRes.Items);
+      }
+      lastEvaluatedKey = scanRes.LastEvaluatedKey;
+    } while (lastEvaluatedKey);
+
+    console.log(`[sendPush] Total scanned items in DB: ${allItems.length}`);
+
     const matchedSubs = allItems.filter(
       (item) => item.userSub && targetUserSubSet.has(item.userSub)
     );
 
     console.log(
-      `[sendPush] Matched subscriptions count in DB: ${matchedSubs.length}`
+      `[sendPush] Matched subscriptions count in DB for target users: ${matchedSubs.length}`
     );
     if (matchedSubs.length === 0) return;
 
@@ -106,52 +117,54 @@ async function sendPushNotificationToUsers(
         new DescribeTableCommand({ TableName: tableName })
       );
       keySchema = (tableDesc.Table?.KeySchema as any) || [];
-      console.log(
-        `[sendPush] Table KeySchema:`,
-        JSON.stringify(keySchema)
-      );
+      console.log(`[sendPush] Table KeySchema:`, JSON.stringify(keySchema));
     } catch (descErr) {
       console.error('[sendPush] Failed to describe table:', descErr);
     }
 
-    // 過去の古い大量ゴミレコードの一括自動クリーンアップ
+    // 過去の古い大量ゴミレコードの一括自動クリーンアップ (50件ずつ並列処理)
     if (obsoleteItems.length > 0) {
       console.log(
-        `[sendPush] Attempting to purge ${obsoleteItems.length} obsolete records...`
+        `[sendPush] Attempting to purge ${obsoleteItems.length} obsolete records from DB...`
       );
-      const results = await Promise.allSettled(
-        obsoleteItems.map(async (item) => {
-          const keyObj: Record<string, any> = {};
-          if (keySchema.length > 0) {
-            for (const k of keySchema) {
-              if (k.AttributeName && item[k.AttributeName] !== undefined) {
-                keyObj[k.AttributeName] = item[k.AttributeName];
+
+      const chunkSize = 50;
+      let deletedTotal = 0;
+
+      for (let i = 0; i < obsoleteItems.length; i += chunkSize) {
+        const chunk = obsoleteItems.slice(i, i + chunkSize);
+        const results = await Promise.allSettled(
+          chunk.map(async (item) => {
+            const keyObj: Record<string, any> = {};
+            if (keySchema.length > 0) {
+              for (const k of keySchema) {
+                if (k.AttributeName && item[k.AttributeName] !== undefined) {
+                  keyObj[k.AttributeName] = item[k.AttributeName];
+                }
               }
             }
-          }
-          if (Object.keys(keyObj).length === 0) {
-            keyObj.id = item.id;
-          }
+            if (Object.keys(keyObj).length === 0) {
+              keyObj.id = item.id;
+            }
 
-          const res = await docClient.send(
-            new DeleteCommand({
-              TableName: tableName,
-              Key: keyObj,
-              ReturnValues: 'ALL_OLD',
-            })
-          );
+            const res = await docClient.send(
+              new DeleteCommand({
+                TableName: tableName,
+                Key: keyObj,
+                ReturnValues: 'ALL_OLD',
+              })
+            );
+            return res.Attributes ? 1 : 0;
+          })
+        );
 
-          return { id: item.id, attributes: res.Attributes, keyUsed: keyObj };
-        })
-      );
-
-      const deletedCount = results.filter(
-        (r) => r.status === 'fulfilled' && (r.value as any).attributes
-      ).length;
-      const unmatchedCount = obsoleteItems.length - deletedCount;
+        deletedTotal += results.filter(
+          (r) => r.status === 'fulfilled' && (r.value as any) === 1
+        ).length;
+      }
 
       console.log(
-        `[sendPush] Purged ${deletedCount}/${obsoleteItems.length} obsolete records (Unmatched/Failed: ${unmatchedCount}).`
+        `[sendPush] Successfully purged ${deletedTotal}/${obsoleteItems.length} obsolete records from DB.`
       );
     }
 
