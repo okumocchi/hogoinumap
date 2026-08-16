@@ -88,6 +88,19 @@ export function ChatWindow({ threadId, owners, myKey, myName, counterpartName, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId]);
 
+  function scrollToBottom(smooth = true) {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (listRef.current) {
+          listRef.current.scrollTo({
+            top: listRef.current.scrollHeight,
+            behavior: smooth ? 'smooth' : 'auto',
+          });
+        }
+      }, 50);
+    });
+  }
+
   async function handleSend() {
     const body = draft.trim();
     if (!body || sending) return;
@@ -103,7 +116,9 @@ export function ChatWindow({ threadId, owners, myKey, myName, counterpartName, o
         throw new Error(result.errors.map((e) => e.message).join(' / '));
       }
       setDraft('');
-      setMessages(await fetchMessages());
+      const updatedMessages = await fetchMessages();
+      setMessages(updatedMessages);
+      scrollToBottom(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'メッセージの送信に失敗しました。時間をおいて再度お試しください。');
     } finally {
