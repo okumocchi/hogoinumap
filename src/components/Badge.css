@@ -29,9 +29,9 @@
 }
 
 .badge--warning {
-  color: #b4600a;
-  background: rgba(180, 96, 10, 0.1);
-  border: 1px solid rgba(180, 96, 10, 0.35);
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
 }
 
 .badge--clickable {

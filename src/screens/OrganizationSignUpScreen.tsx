@@ -1,4 +1,4 @@
-import { autoSignIn, confirmSignUp, getCurrentUser, resendSignUpCode, signUp } from 'aws-amplify/auth';
+import { autoSignIn, confirmSignUp, getCurrentUser, resendSignUpCode, signIn, signUp } from 'aws-amplify/auth';
 import { type FormEvent, useState } from 'react';
 import { dataClient } from '../lib/dataClient';
 import { translateAuthError } from '../utils/authErrors';
@@ -64,6 +64,20 @@ export function OrganizationSignUpScreen({ onBack, onComplete }: OrganizationSig
     // ボランティアが所属申請(Affiliation)を作成する際にowners配列を組み立てられるよう、
     // owner認可の内部フィールドと同じ形式(sub::username)の値を明示的なフィールドとして保存する
     const { userId, username } = await getCurrentUser();
+    const ownerSub = `${userId}::${username}`;
+
+    // すでに同一ユーザーのOrganizationレコードが存在するか一覧を取得
+    try {
+      const existing = await dataClient.models.Organization.list({
+        filter: { ownerSub: { eq: ownerSub } },
+      });
+      if (existing.data && existing.data.length > 0) {
+        setStep('done');
+        return;
+      }
+    } catch {
+      // 一覧取得エラー時はスルーして作成に進む
+    }
 
     // データベースには番地と建物名を結合した完全な住所文字列を保存します
     const fullAddressLine = form.building ? `${form.addressLine} ${form.building}` : form.addressLine;
@@ -79,7 +93,7 @@ export function OrganizationSignUpScreen({ onBack, onComplete }: OrganizationSig
       contactPhone: form.contactPhone || undefined,
       wishlistUrl: form.wishlistUrl || undefined,
       websiteUrl: form.websiteUrl || undefined,
-      ownerSub: `${userId}::${username}`,
+      ownerSub: ownerSub,
     };
     // @aws-amplify/data-schema(1.26.0)には、必須のstringフィールドがcreate()の
     // 引数型でstring[]に誤推論されるバグがある(aws-amplify/amplify-js#13523と同種)。
@@ -119,11 +133,32 @@ export function OrganizationSignUpScreen({ onBack, onComplete }: OrganizationSig
       });
 
       if (nextStep.signUpStep === 'DONE') {
+        // セッション確立の確認
+        try {
+          await getCurrentUser();
+        } catch {
+          await signIn({ username: form.email, password: form.password });
+        }
         await completeRegistration();
       } else {
         setStep('confirm');
       }
-    } catch (err) {
+    } catch (err: any) {
+      const errName = err?.name || err?.code || '';
+      if (errName === 'UsernameExistsException') {
+        try {
+          const signInRes = await signIn({ username: form.email, password: form.password });
+          if (signInRes.nextStep.signInStep === 'CONFIRM_SIGN_UP') {
+            setStep('confirm');
+            return;
+          } else if (signInRes.nextStep.signInStep === 'DONE') {
+            await completeRegistration();
+            return;
+          }
+        } catch {
+          // ログイン不可（パスワード相違など）の場合は通常のメッセージを表示
+        }
+      }
       setError(translateAuthError(err));
     } finally {
       setSubmitting(false);
@@ -135,12 +170,36 @@ export function OrganizationSignUpScreen({ onBack, onComplete }: OrganizationSig
     setError(null);
     setSubmitting(true);
     try {
-      const { nextStep } = await confirmSignUp({ username: form.email, confirmationCode: code });
-      if (nextStep.signUpStep === 'COMPLETE_AUTO_SIGN_IN') {
-        await autoSignIn();
+      try {
+        const { nextStep } = await confirmSignUp({ username: form.email, confirmationCode: code });
+        if (nextStep.signUpStep === 'COMPLETE_AUTO_SIGN_IN') {
+          try {
+            await autoSignIn();
+          } catch (autoSignInErr) {
+            console.warn('autoSignIn failed, fallback to signIn:', autoSignInErr);
+          }
+        }
+      } catch (confirmErr: any) {
+        const errName = confirmErr?.name || confirmErr?.code || '';
+        if (
+          errName !== 'UserIsConfirmedException' &&
+          errName !== 'NotAuthorizedException' &&
+          errName !== 'AliasExistsException'
+        ) {
+          throw confirmErr;
+        }
       }
+
+      // 確実にセッションを保持
+      try {
+        await getCurrentUser();
+      } catch {
+        await signIn({ username: form.email, password: form.password });
+      }
+
       await completeRegistration();
     } catch (err) {
+      console.error('Confirm error:', err);
       setError(translateAuthError(err));
     } finally {
       setSubmitting(false);

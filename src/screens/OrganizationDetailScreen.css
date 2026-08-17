@@ -95,7 +95,7 @@
 .organization-detail__error {
   margin: 6px 0 0;
   font-size: 12px;
-  color: #b4600a;
+  color: var(--accent);
 }
 
 .organization-detail__dogs {
@@ -207,7 +207,7 @@
 .foster-confirm-modal__error {
   margin: 0 0 16px;
   font-size: 13px;
-  color: #b4600a;
+  color: var(--accent);
 }
 
 .foster-confirm-modal__message {

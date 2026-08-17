@@ -3,7 +3,8 @@
   align-items: center;
   gap: 16px;
   padding: 4px 8px 4px 8px;
-  border-bottom: 1px solid var(--border);
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--header-border);
 }
 
 .app-header__title {
@@ -25,20 +26,26 @@
 }
 
 .app-header__tab {
-  border: 1px solid var(--border);
-  background: var(--social-bg);
-  color: var(--text);
+  border: 1px solid var(--header-border);
+  background: var(--header-btn-bg);
+  color: var(--header-text-sub);
   border-radius: 999px;
   padding: 6px 16px;
   font-size: 14px;
   white-space: nowrap;
   cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.app-header__tab:hover {
+  background: var(--header-btn-hover);
+  color: var(--header-text);
 }
 
 .app-header__tab.is-active {
-  border-color: var(--accent-border);
-  background: var(--accent-bg);
-  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
   font-weight: 600;
 }
 
@@ -52,7 +59,7 @@
 
 .app-header__account-email {
   font-size: 13px;
-  color: var(--text);
+  color: var(--header-text);
   max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -60,20 +67,25 @@
 }
 
 .app-header__account-button {
-  border: 1px solid var(--border);
-  background: var(--social-bg);
-  color: var(--text-h);
+  border: 1px solid var(--header-border);
+  background: var(--header-btn-bg);
+  color: var(--header-text);
   border-radius: 8px;
   padding: 8px 14px;
   font-size: 14px;
   white-space: nowrap;
   cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.app-header__account-button:hover {
+  background: var(--header-btn-hover);
 }
 
 .app-header__signup-button {
   border: 1px solid var(--accent-border);
-  background: var(--accent-bg);
-  color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
   border-radius: 8px;
   padding: 8px 14px;
   font-size: 14px;
@@ -85,7 +97,7 @@
 .app-header__dashboard-icon-button {
   border: none;
   background: transparent;
-  color: var(--text-h);
+  color: var(--header-text);
   border-radius: 50%;
   width: 48px;
   height: 48px;
@@ -96,10 +108,11 @@
   align-items: center;
   justify-content: center;
   position: relative;
+  transition: background-color 0.2s ease;
 }
 
 .app-header__dashboard-icon-button:hover {
-  background: var(--social-bg);
+  background: var(--header-btn-hover);
 }
 
 .app-header__dashboard-icon {
@@ -128,7 +141,7 @@
 .app-header__menu-toggle {
   border: none;
   background: transparent;
-  color: var(--text-h);
+  color: var(--header-text);
   border-radius: 50%;
   width: 48px;
   height: 48px;
@@ -139,10 +152,11 @@
   align-items: center;
   justify-content: center;
   margin-right: -4px;
+  transition: background-color 0.2s ease;
 }
 
 .app-header__menu-toggle:hover {
-  background: var(--social-bg);
+  background: var(--header-btn-hover);
 }
 
 .app-header__menu-icon {

@@ -127,7 +127,7 @@
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: #ffffff;
   color: var(--text-h);
   font-size: 15px;
   font-family: inherit;
@@ -143,9 +143,9 @@
   margin: 0;
   padding: 10px 12px;
   border-radius: 8px;
-  border: 1px solid rgba(180, 96, 10, 0.35);
-  background: rgba(180, 96, 10, 0.1);
-  color: #b4600a;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
   font-size: 13px;
 }
 

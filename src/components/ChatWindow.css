@@ -112,7 +112,7 @@
   margin: 0;
   padding: 6px 12px;
   font-size: 12px;
-  color: #b4600a;
+  color: var(--accent);
 }
 
 .chat-window__composer {
@@ -131,7 +131,7 @@
   padding: 8px 10px;
   font: inherit;
   font-size: 13px;
-  background: var(--bg);
+  background: #ffffff;
   color: var(--text-h);
   min-height: 36px;
   max-height: 120px;

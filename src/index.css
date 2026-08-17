@@ -1,16 +1,25 @@
 :root {
   --text: #7a6a56;
   --text-h: #40331f;
-  --bg: #faf5ec;
+  --bg: #d5cec4;
+  --input-bg: #ffffff;
   --border: #e2d3ba;
   --code-bg: #f1e6d2;
-  --accent: #b3703a;
-  --accent-bg: rgba(179, 112, 58, 0.12);
-  --accent-border: rgba(179, 112, 58, 0.4);
-  --accent-contrast: #fffaf3;
+  --accent: #2a2118;
+  --accent-bg: rgba(42, 33, 24, 0.12);
+  --accent-border: rgba(42, 33, 24, 0.35);
+  --accent-contrast: #ffffff;
   --social-bg: rgba(238, 227, 205, 0.6);
   --shadow:
     rgba(64, 51, 31, 0.12) 0 10px 15px -3px, rgba(64, 51, 31, 0.08) 0 4px 6px -2px;
+
+  /* ヘッダー用テーマ変数（こげ茶色） */
+  --header-bg: #2a2118;
+  --header-border: #4a3c28;
+  --header-text: #f3e8d6;
+  --header-text-sub: #cbb89a;
+  --header-btn-bg: rgba(203, 184, 154, 0.12);
+  --header-btn-hover: rgba(203, 184, 154, 0.22);
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -18,7 +27,7 @@
 
   font: 18px/135% var(--sans);
   letter-spacing: 0.18px;
-  color-scheme: light dark;
+  color-scheme: light;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -31,25 +40,11 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #cbb89a;
-    --text-h: #f3e8d6;
-    --bg: #2a2118;
-    --border: #4a3c28;
-    --code-bg: #382c1c;
-    --accent: #d99b5c;
-    --accent-bg: rgba(217, 155, 92, 0.18);
-    --accent-border: rgba(217, 155, 92, 0.5);
-    --accent-contrast: #2a1d10;
-    --social-bg: rgba(58, 46, 28, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+  background-color: var(--input-bg);
+  color: var(--text-h);
 }
 
 #root {
