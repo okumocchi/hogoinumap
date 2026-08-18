@@ -129,22 +129,7 @@ export function VolunteerSignUpScreen({ onBack, onComplete }: VolunteerSignUpScr
       } else {
         setStep('confirm');
       }
-    } catch (err: any) {
-      const errName = err?.name || err?.code || '';
-      if (errName === 'UsernameExistsException') {
-        try {
-          const signInRes = await signIn({ username: form.email, password: form.password });
-          if (signInRes.nextStep.signInStep === 'CONFIRM_SIGN_UP') {
-            setStep('confirm');
-            return;
-          } else if (signInRes.nextStep.signInStep === 'DONE') {
-            await completeRegistration();
-            return;
-          }
-        } catch {
-          // ログイン不可（パスワード相違など）の場合は通常のメッセージを表示
-        }
-      }
+    } catch (err) {
       setError(translateAuthError(err));
     } finally {
       setSubmitting(false);
@@ -156,23 +141,12 @@ export function VolunteerSignUpScreen({ onBack, onComplete }: VolunteerSignUpScr
     setError(null);
     setSubmitting(true);
     try {
-      try {
-        const { nextStep } = await confirmSignUp({ username: form.email, confirmationCode: code });
-        if (nextStep.signUpStep === 'COMPLETE_AUTO_SIGN_IN') {
-          try {
-            await autoSignIn();
-          } catch (autoSignInErr) {
-            console.warn('autoSignIn failed, fallback to signIn:', autoSignInErr);
-          }
-        }
-      } catch (confirmErr: any) {
-        const errName = confirmErr?.name || confirmErr?.code || '';
-        if (
-          errName !== 'UserIsConfirmedException' &&
-          errName !== 'NotAuthorizedException' &&
-          errName !== 'AliasExistsException'
-        ) {
-          throw confirmErr;
+      const { nextStep } = await confirmSignUp({ username: form.email, confirmationCode: code });
+      if (nextStep.signUpStep === 'COMPLETE_AUTO_SIGN_IN') {
+        try {
+          await autoSignIn();
+        } catch (autoSignInErr) {
+          console.warn('autoSignIn failed, fallback to signIn:', autoSignInErr);
         }
       }
 

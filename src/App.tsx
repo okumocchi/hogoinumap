@@ -133,6 +133,10 @@ function App() {
     setHistory((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev));
   }, []);
 
+  const resetToHome = useCallback(() => {
+    setHistory([{ screen: 'map' }]);
+  }, []);
+
   const currentUserEmail = useCurrentUser();
   const [myOrganization, refetchMyOrganization] = useMyOrganization();
   const [myVolunteer, refetchMyVolunteer] = useMyVolunteer();
@@ -289,7 +293,7 @@ function App() {
         onBack={popRoute}
         onComplete={() => {
           refetchMyOrganization();
-          popRoute();
+          resetToHome();
         }}
       />
     );
@@ -299,7 +303,7 @@ function App() {
         onBack={popRoute}
         onComplete={() => {
           refetchMyVolunteer();
-          popRoute();
+          resetToHome();
         }}
       />
     );

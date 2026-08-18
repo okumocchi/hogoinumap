@@ -267,12 +267,13 @@
 }
 
 .map-screen__confirm-btn--primary {
-  background: var(--primary, #c1502e);
-  color: #fff;
-  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: var(--accent);
 }
 
 .map-screen__confirm-btn--secondary {
-  background: var(--social-bg, #f4f0ea);
-  color: var(--text, #555);
+  background: #ffffff;
+  color: var(--text-h);
+  border-color: var(--border);
 }
