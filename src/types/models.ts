@@ -55,6 +55,7 @@ export interface Dog {
   mixedVaccinationDate?: string;
   prefecture: string;
   city: string;
+  owners?: string[];
 }
 
 export type CustodianType = 'ORGANIZATION' | 'VOLUNTEER';

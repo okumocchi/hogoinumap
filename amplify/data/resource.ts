@@ -224,11 +224,12 @@ const schema = a.schema({
       status: a.string(),
       comment: a.string(),
 
-      // 記録した本人(団体/ボランティア)が誤登録時に修正できるようownerのみ編集可
-      // 閲覧は保護犬詳細ページで表示するためguestにも許可(将来閲覧制限をかける可能性あり)
+      // 団体オーナー・作成者・モデレータのsubを保持し、全員に編集・削除権限を付与するマルチオーナー配列
+      owners: a.string().array(),
     })
     .authorization((allow) => [
       allow.owner(),
+      allow.ownersDefinedIn('owners'),
       allow.guest().to(['read']),
       allow.authenticated().to(['read']),
     ])
@@ -256,10 +257,14 @@ const schema = a.schema({
       // (値自体はAmplifyが自動設定する標準フィールド)
       createdAt: a.datetime(),
 
+      // 団体オーナー・作成者・モデレータのsubを保持し、全員に編集・削除権限を付与するマルチオーナー配列
+      owners: a.string().array(),
+
       likes: a.hasMany('MediaLike', 'dogMediaId'),
     })
     .authorization((allow) => [
       allow.owner(), // 投稿した団体が編集・削除
+      allow.ownersDefinedIn('owners'),
       allow.guest().to(['read']),
       allow.authenticated().to(['read']),
     ])

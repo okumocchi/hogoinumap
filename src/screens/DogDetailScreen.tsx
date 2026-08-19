@@ -770,6 +770,7 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
         caption: uploadCaption || undefined,
         // EXIFから撮影日時が取得できない場合は投稿日時を撮影日時とする
         capturedAt: (capturedAt ?? new Date()).toISOString(),
+        owners: dog?.owners,
       };
       // data-schemaの型推論バグを回避するためas anyを使用(OrganizationDogDetailScreenと同様)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

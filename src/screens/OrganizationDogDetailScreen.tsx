@@ -1,6 +1,7 @@
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { getUrl, remove } from 'aws-amplify/storage';
 import { type FormEvent, useEffect, useState } from 'react';
+import { Badge } from '../components/Badge';
 import { dataClient } from '../lib/dataClient';
 import type { CustodianType, Dog, DogStatus, MediaType } from '../types/models';
 import {
@@ -8,9 +9,12 @@ import {
   calculateAgeLabel,
   calculateElapsedLabel,
   custodianTypeLabel,
+  dogSizeLabel,
   dogStatusComment,
   effectiveDogStatusLabel,
   genderLabel,
+  isDogOpenForFosterOffers,
+  isSameOwnerSub,
 } from '../utils/dog';
 import { uploadMediaFile } from '../utils/uploadDogMedia';
 import { formatApiError } from '../utils/apiErrors';
@@ -168,6 +172,41 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
       setHistoryDeleting(null);
     }
   }
+
+  const [fosterVolunteerRecord, setFosterVolunteerRecord] = useState<{ prefecture: string; city: string } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadVolunteerLocation() {
+      if (!dog.custodianOwnerSub) {
+        setFosterVolunteerRecord(null);
+        return;
+      }
+      try {
+        const session = await fetchAuthSession();
+        const authMode = session.tokens ? 'userPool' : 'identityPool';
+        const volRes = await dataClient.models.Volunteer.list({ authMode });
+        if (cancelled) return;
+        const matched = volRes.data.find((v) => isSameOwnerSub(v.ownerSub, dog.custodianOwnerSub));
+        if (matched) {
+          setFosterVolunteerRecord({ prefecture: matched.prefecture, city: matched.city });
+        }
+      } catch (err) {
+        console.error('Failed to load foster volunteer location:', err);
+      }
+    }
+
+    loadVolunteerLocation();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dog.custodianOwnerSub]);
+
+  const isFostered = dog.status === 'FOSTERED' || !!dog.custodianOwnerSub;
+  const displayPref = (isFostered && fosterVolunteerRecord) ? fosterVolunteerRecord.prefecture : dog.prefecture;
+  const displayCity = (isFostered && fosterVolunteerRecord) ? fosterVolunteerRecord.city : dog.city;
 
   const [pendingFosterRequest, setPendingFosterRequest] = useState<PendingFosterRequest | null>(null);
   const [fosterActionSubmitting, setFosterActionSubmitting] = useState(false);
@@ -364,6 +403,7 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
         caption: uploadCaption || undefined,
         // EXIFから撮影日時が取得できない場合は投稿日時を撮影日時とする
         capturedAt: (capturedAt ?? new Date()).toISOString(),
+        owners: dog.owners,
       };
       // Dog登録と同様、data-schemaの型推論バグを回避するためas anyを使用
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -473,6 +513,13 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
               <EditIcon />
             </button>
           </div>
+
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+            <Badge tone="neutral">{effectiveDogStatusLabel(dog)}</Badge>
+            {dog.seekingAdopter && <Badge tone="success">里親募集中</Badge>}
+            {isDogOpenForFosterOffers(dog) && <Badge tone="accent">預かりボランティア募集中</Badge>}
+          </div>
+
           <dl className="org-dog-detail__facts">
             <div>
               <dt>性別</dt>
@@ -483,8 +530,36 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
               <dd>{calculateAgeLabel(dog.birthDate, dog.birthDateEstimated)}</dd>
             </div>
             <div>
-              <dt>ステータス</dt>
-              <dd>{effectiveDogStatusLabel(dog)}</dd>
+              <dt>大きさ</dt>
+              <dd>{dogSizeLabel[dog.size] || '未登録'}</dd>
+            </div>
+            <div>
+              <dt>保護日</dt>
+              <dd>{dog.protectedDate || '未登録'}</dd>
+            </div>
+            <div>
+              <dt>去勢/避妊手術日</dt>
+              <dd>{dog.sterilizationDate || '未実施・未登録'}</dd>
+            </div>
+            <div>
+              <dt>狂犬病ワクチン接種日</dt>
+              <dd>{dog.rabiesVaccinationDate || '未接種・未登録'}</dd>
+            </div>
+            <div>
+              <dt>混合ワクチン接種日</dt>
+              <dd>{dog.mixedVaccinationDate || '未接種・未登録'}</dd>
+            </div>
+            <div>
+              <dt>現在の保護場所</dt>
+              <dd>{displayPref} {displayCity}</dd>
+            </div>
+            <div className="org-dog-detail__fact-full">
+              <dt>保護の経緯</dt>
+              <dd className="org-dog-detail__fact-text">{dog.story || '未登録'}</dd>
+            </div>
+            <div className="org-dog-detail__fact-full">
+              <dt>性格・状況</dt>
+              <dd className="org-dog-detail__fact-text">{dog.personality || '未登録'}</dd>
             </div>
           </dl>
         </section>

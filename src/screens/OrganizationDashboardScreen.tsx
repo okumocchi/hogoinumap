@@ -461,6 +461,46 @@ export function OrganizationDashboardScreen({
             { authMode: 'userPool' },
           );
         }
+
+        // 該当Dogの全 DogMedia の owners 一括同期
+        try {
+          const mediaResult = await dataClient.models.DogMedia.listByDogSortedByDate(
+            { dogId: dogItem.id },
+            { authMode: 'userPool' }
+          );
+          for (const m of mediaResult.data) {
+            const mOwners = (m.owners ?? []).filter((v): v is string => !!v);
+            const mSame = mOwners.length === newOwners.length && newOwners.every((o) => mOwners.includes(o));
+            if (!mSame) {
+              await (dataClient.models.DogMedia.update as any)(
+                { id: m.id, owners: newOwners },
+                { authMode: 'userPool' }
+              );
+            }
+          }
+        } catch (mErr) {
+          console.error('Failed to sync DogMedia owners:', mErr);
+        }
+
+        // 該当Dogの全 CustodyRecord の owners 一括同期
+        try {
+          const custodyResult = await dataClient.models.CustodyRecord.listCustodyRecordsByDog(
+            { dogId: dogItem.id },
+            { authMode: 'userPool' }
+          );
+          for (const c of custodyResult.data) {
+            const cOwners = (c.owners ?? []).filter((v): v is string => !!v);
+            const cSame = cOwners.length === newOwners.length && newOwners.every((o) => cOwners.includes(o));
+            if (!cSame) {
+              await (dataClient.models.CustodyRecord.update as any)(
+                { id: c.id, owners: newOwners },
+                { authMode: 'userPool' }
+              );
+            }
+          }
+        } catch (cErr) {
+          console.error('Failed to sync CustodyRecord owners:', cErr);
+        }
       }
     } catch (err) {
       console.error('Failed to sync owners for organization:', err);
@@ -596,6 +636,7 @@ export function OrganizationDashboardScreen({
           startDate: values.protectedDate,
           status: 'PROTECTED',
           comment: dogStatusComment['PROTECTED'],
+          owners,
         };
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await dataClient.models.CustodyRecord.create(custodyInput as any);
@@ -642,6 +683,7 @@ export function OrganizationDashboardScreen({
           startDate: today(),
           status: values.status,
           comment: dogStatusComment[values.status],
+          owners,
         };
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await dataClient.models.CustodyRecord.create(custodyInput as any);
@@ -1177,18 +1219,30 @@ export function OrganizationDashboardScreen({
                           </div>
                           <div className="org-dashboard__dog-info">
                             <div className="org-dashboard__dog-heading">
-                              <span className="org-dashboard__dog-name">
-                                {dog.name}
-                                {dog.status === 'PROTECTED' && dog.custodianOwnerSub && (
-                                  <span className="org-dashboard__dog-badge">預かり申し出あり</span>
+                              <span className="org-dashboard__dog-name">{dog.name}</span>
+                              <div className="org-dashboard__dog-badges">
+                                <span className="org-dashboard__dog-badge org-dashboard__dog-badge--status">
+                                  {effectiveDogStatusLabel(dog)}
+                                </span>
+                                {dog.seekingAdopter && (
+                                  <span className="org-dashboard__dog-badge org-dashboard__dog-badge--adopter">
+                                    里親募集中
+                                  </span>
                                 )}
-                              </span>
-                              <span className="org-dashboard__dog-status">{effectiveDogStatusLabel(dog)}</span>
+                                {isDogOpenForFosterOffers(dog) && (
+                                  <span className="org-dashboard__dog-badge org-dashboard__dog-badge--foster">
+                                    預かりボランティア募集中
+                                  </span>
+                                )}
+                                {dog.status === 'PROTECTED' && dog.custodianOwnerSub && (
+                                  <span className="org-dashboard__dog-badge org-dashboard__dog-badge--request">
+                                    預かり申し出あり
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <p className="org-dashboard__dog-meta">
                               {genderLabel[dog.gender]} ・ {calculateAgeLabel(dog.birthDate, dog.birthDateEstimated)}
-                              {dog.seekingAdopter && ' ・ 里親募集中'}
-                              {isDogOpenForFosterOffers(dog) && ' ・ 預かりボランティア募集中'}
                             </p>
                           </div>
                         </button>
