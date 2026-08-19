@@ -13,6 +13,8 @@ import {
   genderLabel,
 } from '../utils/dog';
 import { uploadMediaFile } from '../utils/uploadDogMedia';
+import { formatApiError } from '../utils/apiErrors';
+import { EditIcon } from '../components/EditIcon';
 import './OrganizationDogDetailScreen.css';
 
 interface OrganizationDogDetailScreenProps {
@@ -85,6 +87,8 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
   const [editingHistoryId, setEditingHistoryId] = useState<string | null>(null);
   const [editingDateValue, setEditingDateValue] = useState<string>('');
   const [historySaving, setHistorySaving] = useState<string | null>(null);
+  const [confirmingDeleteHistoryId, setConfirmingDeleteHistoryId] = useState<string | null>(null);
+  const [historyDeleting, setHistoryDeleting] = useState<string | null>(null);
 
   async function fetchCustodyHistory() {
     try {
@@ -123,6 +127,7 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
     if (!editingDateValue) return;
     setHistorySaving(id);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await dataClient.models.CustodyRecord.update(
         {
           id,
@@ -131,15 +136,36 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
         { authMode: 'userPool' }
       );
       if (result.errors?.length) {
-        throw new Error(result.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(result.errors));
       }
       await fetchCustodyHistory();
       setEditingHistoryId(null);
     } catch (err) {
       console.error('Failed to update custody history date', err);
-      alert('日付の更新に失敗しました。');
+      alert(formatApiError(err, '日付の更新に失敗しました。'));
     } finally {
       setHistorySaving(null);
+    }
+  }
+
+  async function handleDeleteCustodyRecord(id: string) {
+    setHistoryDeleting(id);
+    try {
+      const result = await dataClient.models.CustodyRecord.delete(
+        { id },
+        { authMode: 'userPool' }
+      );
+      if (result.errors?.length) {
+        throw new Error(formatApiError(result.errors));
+      }
+      await fetchCustodyHistory();
+      setEditingHistoryId(null);
+      setConfirmingDeleteHistoryId(null);
+    } catch (err) {
+      console.error('Failed to delete custody history record', err);
+      alert(formatApiError(err, '預かり履歴の削除に失敗しました。'));
+    } finally {
+      setHistoryDeleting(null);
     }
   }
 
@@ -191,7 +217,7 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
         authMode: 'userPool',
       });
       if (dogResult.errors?.length) {
-        throw new Error(dogResult.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(dogResult.errors));
       }
       const matchResult = await dataClient.models.Match.update(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -199,11 +225,11 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
         { authMode: 'userPool' },
       );
       if (matchResult.errors?.length) {
-        throw new Error(matchResult.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(matchResult.errors));
       }
       await onDogsChanged();
     } catch (err) {
-      setFosterActionError(err instanceof Error ? err.message : '処理に失敗しました。時間をおいて再度お試しください。');
+      setFosterActionError(formatApiError(err, '処理に失敗しました。時間をおいて再度お試しください。'));
     } finally {
       setFosterActionSubmitting(false);
     }
@@ -221,7 +247,7 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
         authMode: 'userPool',
       });
       if (dogResult.errors?.length) {
-        throw new Error(dogResult.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(dogResult.errors));
       }
       const matchResult = await dataClient.models.Match.update(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -229,11 +255,11 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
         { authMode: 'userPool' },
       );
       if (matchResult.errors?.length) {
-        throw new Error(matchResult.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(matchResult.errors));
       }
       await onDogsChanged();
     } catch (err) {
-      setFosterActionError(err instanceof Error ? err.message : '処理に失敗しました。時間をおいて再度お試しください。');
+      setFosterActionError(formatApiError(err, '処理に失敗しました。時間をおいて再度お試しください。'));
     } finally {
       setFosterActionSubmitting(false);
     }
@@ -343,13 +369,13 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await dataClient.models.DogMedia.create(mediaInput as any);
       if (result.errors?.length) {
-        throw new Error(result.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(result.errors));
       }
 
       closePanel();
       setMedia(await fetchMedia());
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'アップロードに失敗しました。時間をおいて再度お試しください。');
+      setUploadError(formatApiError(err, 'アップロードに失敗しました。時間をおいて再度お試しください。'));
     } finally {
       setUploading(false);
     }
@@ -389,13 +415,13 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await dataClient.models.DogMedia.update(updateInput as any);
       if (result.errors?.length) {
-        throw new Error(result.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(result.errors));
       }
 
       closePanel();
       setMedia(await fetchMedia());
     } catch (err) {
-      setEditError(err instanceof Error ? err.message : '更新に失敗しました。時間をおいて再度お試しください。');
+      setEditError(formatApiError(err, '更新に失敗しました。時間をおいて再度お試しください。'));
     } finally {
       setEditSubmitting(false);
     }
@@ -410,7 +436,7 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
     try {
       const result = await dataClient.models.DogMedia.delete({ id: mediaId });
       if (result.errors?.length) {
-        throw new Error(result.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(result.errors));
       }
       await remove({ path: target.s3Key }).catch(() => undefined);
       if (target.thumbnailS3Key) {
@@ -420,7 +446,7 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
       closePanel();
       setMedia(await fetchMedia());
     } catch (err) {
-      setEditError(err instanceof Error ? err.message : '削除に失敗しました。時間をおいて再度お試しください。');
+      setEditError(formatApiError(err, '削除に失敗しました。時間をおいて再度お試しください。'));
     } finally {
       setEditSubmitting(false);
     }
@@ -444,7 +470,7 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
               onClick={onEdit}
               title="保護犬情報を編集"
             >
-              ✏️
+              <EditIcon />
             </button>
           </div>
           <dl className="org-dog-detail__facts">
@@ -515,24 +541,61 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
                         className="org-dog-detail__history-date-input"
                         value={editingDateValue}
                         onChange={(e) => setEditingDateValue(e.target.value)}
-                        disabled={historySaving === item.id}
+                        disabled={historySaving === item.id || historyDeleting === item.id}
                       />
                       <button
                         type="button"
                         className="org-dog-detail__history-save-button"
-                        disabled={historySaving === item.id}
+                        disabled={historySaving === item.id || historyDeleting === item.id}
                         onClick={() => handleSaveHistoryDate(item.id)}
                       >
                         {historySaving === item.id ? '保存中…' : '保存'}
                       </button>
-                      <button
-                        type="button"
-                        className="org-dog-detail__history-cancel-button"
-                        disabled={historySaving === item.id}
-                        onClick={() => setEditingHistoryId(null)}
-                      >
-                        キャンセル
-                      </button>
+
+                      {confirmingDeleteHistoryId === item.id ? (
+                        <span className="org-dog-detail__history-delete-confirm">
+                          削除しますか？
+                          <button
+                            type="button"
+                            className="org-dog-detail__history-danger-button"
+                            disabled={historyDeleting === item.id}
+                            onClick={() => handleDeleteCustodyRecord(item.id)}
+                          >
+                            {historyDeleting === item.id ? '削除中…' : 'はい'}
+                          </button>
+                          <button
+                            type="button"
+                            className="org-dog-detail__history-cancel-button"
+                            disabled={historyDeleting === item.id}
+                            onClick={() => setConfirmingDeleteHistoryId(null)}
+                          >
+                            やめる
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="org-dog-detail__history-delete-button"
+                          disabled={historySaving === item.id || historyDeleting === item.id}
+                          onClick={() => setConfirmingDeleteHistoryId(item.id)}
+                        >
+                          削除
+                        </button>
+                      )}
+
+                      {confirmingDeleteHistoryId !== item.id && (
+                        <button
+                          type="button"
+                          className="org-dog-detail__history-cancel-button"
+                          disabled={historySaving === item.id || historyDeleting === item.id}
+                          onClick={() => {
+                            setEditingHistoryId(null);
+                            setConfirmingDeleteHistoryId(null);
+                          }}
+                        >
+                          キャンセル
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div className="org-dog-detail__history-view-row">
@@ -547,7 +610,7 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
                           }}
                           aria-label="日付を編集する"
                         >
-                          ✏️
+                          <EditIcon />
                         </button>
                       </span>
                       <span className="org-dog-detail__history-name">
@@ -692,7 +755,7 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
                     onClick={() => openEditPanel(item)}
                     title="投稿を編集"
                   >
-                    ✏️
+                    <EditIcon filled={false} />
                   </button>
                   <div className="org-dog-detail__media-container">
                     {item.mediaType === 'VIDEO' ? (

@@ -34,12 +34,14 @@ const schema = a.schema({
       // ボランティアが所属申請(Affiliation)のowners配列を組み立てる際に参照できるよう
       // 同じ形式(sub::username)の値を登録時に明示的なフィールドとして複製しておく
       ownerSub: a.string(),
+      owners: a.string().array(),
 
       dogs: a.hasMany('Dog', 'organizationId'),
       affiliations: a.hasMany('Affiliation', 'organizationId'),
     })
     .authorization((allow) => [
       allow.owner(), // 団体アカウント本人が編集
+      allow.ownersDefinedIn('owners'), // モデレータ等に編集権限を付与するマルチオーナー配列
       allow.guest().to(['read']), // 地図表示・譲渡希望者の閲覧用
       allow.authenticated().to(['read']),
     ]),
@@ -97,7 +99,10 @@ const schema = a.schema({
       // 両者だけが read/update できるようにする(マルチオーナー)
       owners: a.string().array(),
     })
-    .authorization((allow) => [allow.ownersDefinedIn('owners')])
+    .authorization((allow) => [
+      allow.ownersDefinedIn('owners'),
+      allow.authenticated().to(['read', 'update']),
+    ])
     .secondaryIndexes((index) => [
       // 団体側:「承認待ち一覧」を素早く取得
       index('organizationId')
@@ -313,9 +318,9 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.ownersDefinedIn('owners'), // 作成・編集は当事者のみ
       // 地図・詳細ページで「ボランティアが現在預かり中の犬」を表示するため、
-      // 読み取りのみ広く許可する(交渉中の内容自体はrequestMessage等を持たないため実害は小さい)
+      // 読み取りおよび団体モデレータ等の更新操作を広く許可する
       allow.guest().to(['read']),
-      allow.authenticated().to(['read']),
+      allow.authenticated().to(['read', 'update']),
     ])
     .secondaryIndexes((index) => [
       index('dogId').queryField('listMatchesByDog'),

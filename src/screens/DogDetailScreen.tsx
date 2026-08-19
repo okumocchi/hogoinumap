@@ -3,12 +3,14 @@ import { getUrl, remove } from 'aws-amplify/storage';
 import { type FormEvent, useEffect, useState } from 'react';
 import { Badge } from '../components/Badge';
 import { useRegisteredVolunteers } from '../hooks/useRegisteredVolunteers';
+import { useMyVolunteer } from '../hooks/useMyVolunteer';
 import { dataClient } from '../lib/dataClient';
 import type { CustodianType, MediaType, Dog, Organization, DogStatus } from '../types/models';
 import { SecondaryHeader } from '../components/SecondaryHeader';
 import { getOrCreateAnonToken } from '../utils/likeHelper';
 import {
   calculateAgeAtLabel,
+  calculateAgeBracket,
   calculateAgeLabel,
   calculateElapsedLabel,
   custodianTypeLabel,
@@ -16,8 +18,11 @@ import {
   effectiveDogStatusLabel,
   genderLabel,
   isDogOpenForFosterOffers,
+  isSameOwnerSub,
 } from '../utils/dog';
 import { uploadMediaFile } from '../utils/uploadDogMedia';
+import { formatApiError } from '../utils/apiErrors';
+import { EditIcon } from '../components/EditIcon';
 import './DogDetailScreen.css';
 
 interface DogDetailScreenProps {
@@ -58,6 +63,19 @@ function today(): string {
   return `${year}-${month}-${day}`;
 }
 
+interface FosteringSlotCondition {
+  id: string;
+  conditionAges: string[];
+  conditionGenders: string[];
+  conditionSizes: string[];
+}
+
+type FosterFlow =
+  | { type: 'none' }
+  | { type: 'confirm' }
+  | { type: 'processing' }
+  | { type: 'info' };
+
 // 日付(YYYY-MM-DD)をUTC基準でISO日時に変換する(タイムゾーンによる日付のずれを防ぐ)
 function dateInputToIso(dateStr: string): string {
   const [year, month, day] = dateStr.split('-').map(Number);
@@ -66,23 +84,144 @@ function dateInputToIso(dateStr: string): string {
 
 export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDetailScreenProps) {
   const registeredVolunteers = useRegisteredVolunteers();
+  const [myVolunteer] = useMyVolunteer();
   const [dog, setDog] = useState<Dog | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ほしいものリストURLの特定 (預かりボランティアまたは所属団体)
-  const fosterVolunteer = dog?.custodianOwnerSub
-    ? registeredVolunteers.find((v) => v.ownerSub === dog.custodianOwnerSub)
-    : undefined;
+  // ログインボランティアがこの保護犬の所属団体から承認されているかの判定
+  const [isApprovedVolunteer, setIsApprovedVolunteer] = useState(false);
+  const [availableSlots, setAvailableSlots] = useState<FosteringSlotCondition[]>([]);
 
-  const dogWishlistUrl = dog?.status === 'FOSTERED'
-    ? (fosterVolunteer?.wishlistUrl || undefined)
+  // 預かり希望申し出フロー
+  const [fosterFlow, setFosterFlow] = useState<FosterFlow>({ type: 'none' });
+  const [fosterError, setFosterError] = useState<string | null>(null);
+  const [fosterInfoPopup, setFosterInfoPopup] = useState<string | null>(null);
+
+  // 預かりボランティア情報の取得 (登録済みリスト、ownerSub同等比較、CustodyRecord、Matchの多重照合)
+  const [fosterVolunteerRecord, setFosterVolunteerRecord] = useState<{ prefecture: string; city: string; wishlistUrl?: string } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadFosterVolunteer() {
+      if (!dog) {
+        setFosterVolunteerRecord(null);
+        return;
+      }
+
+      // 1. まず registeredVolunteers から ownerSub の同等比較(isSameOwnerSub)で探す
+      if (dog.custodianOwnerSub) {
+        const foundInList = registeredVolunteers.find((v) => isSameOwnerSub(v.ownerSub, dog.custodianOwnerSub));
+        if (foundInList) {
+          setFosterVolunteerRecord({
+            prefecture: foundInList.prefecture,
+            city: foundInList.city,
+            wishlistUrl: foundInList.wishlistUrl,
+          });
+          return;
+        }
+      }
+
+      // 2. データストア/APIから直接取得を試みる
+      try {
+        const session = await fetchAuthSession();
+        const authMode = session.tokens ? 'userPool' : 'identityPool';
+
+        // 2-a. custodianOwnerSub に基づくボランティアの全検索 (isSameOwnerSub比較)
+        if (dog.custodianOwnerSub) {
+          const volRes = await dataClient.models.Volunteer.list({ authMode });
+          if (cancelled) return;
+          const matchedVol = volRes.data.find((v) => isSameOwnerSub(v.ownerSub, dog.custodianOwnerSub));
+          if (matchedVol) {
+            setFosterVolunteerRecord({
+              prefecture: matchedVol.prefecture,
+              city: matchedVol.city,
+              wishlistUrl: matchedVol.wishlistUrl ?? undefined,
+            });
+            return;
+          }
+        }
+
+        // 2-b. CustodyRecord (最新の預かり履歴) の custodianId からボランティアを特定
+        const custodyRes = await dataClient.models.CustodyRecord.listCustodyRecordsByDog(
+          { dogId: dog.id },
+          { sortDirection: 'DESC', authMode }
+        );
+        if (cancelled) return;
+        const lastVolunteerRecord = custodyRes.data.find(
+          (c) => c.custodianType === 'VOLUNTEER' && c.custodianId
+        );
+        if (lastVolunteerRecord?.custodianId) {
+          const volGet = await dataClient.models.Volunteer.get(
+            { id: lastVolunteerRecord.custodianId },
+            { authMode }
+          );
+          if (cancelled) return;
+          if (volGet.data) {
+            setFosterVolunteerRecord({
+              prefecture: volGet.data.prefecture,
+              city: volGet.data.city,
+              wishlistUrl: volGet.data.wishlistUrl ?? undefined,
+            });
+            return;
+          }
+        }
+
+        // 2-c. Match (マッチング情報) から volunteerId を特定
+        const matchRes = await dataClient.models.Match.listMatchesByDog(
+          { dogId: dog.id },
+          { authMode }
+        );
+        if (cancelled) return;
+        const activeMatch = matchRes.data.find(
+          (m) => Boolean(m.volunteerId)
+        );
+        if (activeMatch?.volunteerId) {
+          const volGet = await dataClient.models.Volunteer.get(
+            { id: activeMatch.volunteerId },
+            { authMode }
+          );
+          if (cancelled) return;
+          if (volGet.data) {
+            setFosterVolunteerRecord({
+              prefecture: volGet.data.prefecture,
+              city: volGet.data.city,
+              wishlistUrl: volGet.data.wishlistUrl ?? undefined,
+            });
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load foster volunteer details:', err);
+      }
+    }
+
+    loadFosterVolunteer();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dog, registeredVolunteers]);
+
+  // 預かりボランティアの特定
+  const fosterVolunteer = fosterVolunteerRecord || (
+    dog?.custodianOwnerSub
+      ? registeredVolunteers.find((v) => isSameOwnerSub(v.ownerSub, dog.custodianOwnerSub))
+      : undefined
+  );
+
+  // 預かり中（FOSTERED状態または預かりボランティア/履歴が存在する場合）の保護場所・ほしいものリストURL導出
+  const isFostered = dog?.status === 'FOSTERED' || !!dog?.custodianOwnerSub || !!fosterVolunteerRecord;
+
+  const dogWishlistUrl = (isFostered && fosterVolunteer?.wishlistUrl)
+    ? fosterVolunteer.wishlistUrl
     : (organization?.wishlistUrl || undefined);
 
-  const displayPref = (dog?.status === 'FOSTERED' && fosterVolunteer)
+  const displayPref = (isFostered && fosterVolunteer?.prefecture)
     ? fosterVolunteer.prefecture
     : dog?.prefecture;
-  const displayCity = (dog?.status === 'FOSTERED' && fosterVolunteer)
+  const displayCity = (isFostered && fosterVolunteer?.city)
     ? fosterVolunteer.city
     : dog?.city;
 
@@ -160,6 +299,139 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
       cancelled = true;
     };
   }, [dogId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadVolunteerStatus() {
+      if (!myVolunteer || !dog?.organizationId) {
+        setIsApprovedVolunteer(false);
+        setAvailableSlots([]);
+        return;
+      }
+
+      try {
+        const [affiliationResult, slotResult, matchResult] = await Promise.all([
+          dataClient.models.Affiliation.listAffiliationsByVolunteer(
+            { volunteerId: myVolunteer.id },
+            { authMode: 'userPool' },
+          ),
+          dataClient.models.FosteringSlot.listFosteringSlotsByVolunteer(
+            { volunteerId: myVolunteer.id },
+            { authMode: 'userPool' },
+          ),
+          dataClient.models.Match.listMatchesByVolunteer(
+            { volunteerId: myVolunteer.id },
+            { authMode: 'userPool' },
+          ),
+        ]);
+        if (cancelled) return;
+
+        const approved = affiliationResult.data.some(
+          (a) => a.organizationId === dog.organizationId && a.status === 'APPROVED',
+        );
+        setIsApprovedVolunteer(approved);
+
+        const occupiedSlotIds = new Set(
+          matchResult.data.filter((m) => m.status !== 'CANCELLED' && m.slotId).map((m) => m.slotId),
+        );
+        const slots = slotResult.data
+          .filter((slot) => !occupiedSlotIds.has(slot.id))
+          .map((slot) => ({
+            id: slot.id,
+            conditionAges: (slot.conditionAges ?? []).filter((v): v is string => !!v),
+            conditionGenders: (slot.conditionGenders ?? []).filter((v): v is string => !!v),
+            conditionSizes: (slot.conditionSizes ?? []).filter((v): v is string => !!v),
+          }));
+        setAvailableSlots(slots);
+      } catch (err) {
+        console.error('Failed to load volunteer status in DogDetailScreen:', err);
+      }
+    }
+
+    loadVolunteerStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [myVolunteer, dog?.organizationId]);
+
+  function findMatchingSlot(): FosteringSlotCondition | undefined {
+    if (!dog || !isApprovedVolunteer) return undefined;
+    const ageBracket = calculateAgeBracket(dog.birthDate);
+    return availableSlots.find(
+      (slot) =>
+        slot.conditionGenders.includes(dog.gender) &&
+        slot.conditionSizes.includes(dog.size) &&
+        slot.conditionAges.includes(ageBracket),
+    );
+  }
+
+  function handleFosterButtonClick() {
+    if (!dog) return;
+    const slot = findMatchingSlot();
+    if (!slot) {
+      setFosterInfoPopup('条件が一致する未使用スロットがありません。');
+      return;
+    }
+    setFosterError(null);
+    setFosterFlow({ type: 'confirm' });
+  }
+
+  function closeFosterFlow() {
+    setFosterFlow({ type: 'none' });
+    setFosterError(null);
+  }
+
+  async function handleFosterConfirmYes() {
+    if (!dog || !myVolunteer) return;
+    const slot = findMatchingSlot();
+    if (!slot) {
+      setFosterError('預かり条件に一致するスロットが見つかりませんでした。');
+      return;
+    }
+
+    setFosterFlow({ type: 'processing' });
+    setFosterError(null);
+    try {
+      const orgResult = await dataClient.models.Organization.get(
+        { id: dog.organizationId },
+        { authMode: 'userPool' },
+      );
+      const orgOwnerSub = orgResult.data?.ownerSub;
+      if (!orgOwnerSub) {
+        throw new Error('この団体とはやり取りできません。');
+      }
+
+      const { userId, username } = await getCurrentUser();
+      const myOwnerSub = `${userId}::${username}`;
+      const matchInput = {
+        dogId: dog.id,
+        volunteerId: myVolunteer.id,
+        slotId: slot.id,
+        status: 'REQUESTED',
+        owners: [myOwnerSub, orgOwnerSub],
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const matchResult = await dataClient.models.Match.create(matchInput as any);
+      if (matchResult.errors?.length) {
+        throw new Error(formatApiError(matchResult.errors));
+      }
+
+      const dogUpdateInput = { id: dog.id, custodianOwnerSub: myOwnerSub };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const dogResult = await dataClient.models.Dog.update(dogUpdateInput as any);
+      if (dogResult.errors?.length) {
+        throw new Error(formatApiError(dogResult.errors));
+      }
+
+      setDog((prev) => (prev ? { ...prev, custodianOwnerSub: myOwnerSub } : null));
+      setFosterFlow({ type: 'info' });
+    } catch (err) {
+      setFosterError(formatApiError(err, '処理に失敗しました。時間をおいて再度お試しください。'));
+      setFosterFlow({ type: 'confirm' });
+    }
+  }
 
   const [media, setMedia] = useState<MediaItem[]>([]);
 
@@ -350,12 +622,12 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
         { authMode: 'userPool' },
       );
       if (result.errors?.length) {
-        throw new Error(result.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(result.errors));
       }
       setPersonalityOverride(personalityDraft);
       setEditingPersonality(false);
     } catch (err) {
-      setPersonalityError(err instanceof Error ? err.message : '更新に失敗しました。時間をおいて再度お試しください。');
+      setPersonalityError(formatApiError(err, '更新に失敗しました。時間をおいて再度お試しください。'));
     } finally {
       setPersonalitySubmitting(false);
     }
@@ -424,12 +696,12 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
         authMode: 'userPool',
       });
       if (result.errors?.length) {
-        throw new Error(result.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(result.errors));
       }
       setMedia(await fetchMedia());
       handleCloseEditMediaPanel();
     } catch (err) {
-      setEditError(err instanceof Error ? err.message : '更新に失敗しました。時間をおいて再度お試しください。');
+      setEditError(formatApiError(err, '更新に失敗しました。時間をおいて再度お試しください。'));
     } finally {
       setEditSubmitting(false);
     }
@@ -445,7 +717,7 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
         { authMode: 'userPool' }
       );
       if (result.errors?.length) {
-        throw new Error(result.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(result.errors));
       }
 
       if (editingMedia.s3Key) {
@@ -458,7 +730,7 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
       setMedia(await fetchMedia());
       handleCloseEditMediaPanel();
     } catch (err) {
-      setEditError(err instanceof Error ? err.message : '削除に失敗しました。時間をおいて再度お試しください。');
+      setEditError(formatApiError(err, '削除に失敗しました。時間をおいて再度お試しください。'));
     } finally {
       setEditSubmitting(false);
     }
@@ -503,13 +775,13 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await dataClient.models.DogMedia.create(mediaInput as any);
       if (result.errors?.length) {
-        throw new Error(result.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(result.errors));
       }
 
       setMediaPanelOpen(false);
       setMedia(await fetchMedia());
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'アップロードに失敗しました。時間をおいて再度お試しください。');
+      setUploadError(formatApiError(err, 'アップロードに失敗しました。時間をおいて再度お試しください。'));
     } finally {
       setUploading(false);
     }
@@ -705,14 +977,14 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
                   onClick={() => startEditingPersonality(personalityOverride ?? dog.personality)}
                   title="性格・状況を編集"
                 >
-                  ✏️
+                  <EditIcon />
                 </button>
               )}
             </div>
             {editingPersonality ? (
               <form className="dog-detail__inline-form" onSubmit={handlePersonalitySubmit}>
                 <textarea
-                  rows={3}
+                  rows={6}
                   value={personalityDraft}
                   onChange={(e) => setPersonalityDraft(e.target.value)}
                 />
@@ -734,6 +1006,18 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
               <p>{personalityOverride ?? dog.personality}</p>
             )}
           </div>
+
+          {isDogOpenForFosterOffers(dog) && isApprovedVolunteer && (
+            <div className="dog-detail__foster-action-row">
+              <button
+                type="button"
+                className="dog-detail__foster-button"
+                onClick={handleFosterButtonClick}
+              >
+                預かりを希望する
+              </button>
+            </div>
+          )}
         </section>
 
         <section className="dog-detail__media">
@@ -792,7 +1076,7 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
                       onClick={() => handleOpenEditMediaPanel(item)}
                       title="投稿を編集"
                     >
-                      ✏️
+                      <EditIcon filled={false} />
                     </button>
                   )}
                   <div className="media-card__media-container">
@@ -1012,6 +1296,72 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
           ) : (
             <img className="dog-detail__lightbox-image" src={lightboxMedia.url} alt="" />
           )}
+        </div>
+      )}
+
+      {(fosterFlow.type === 'confirm' || fosterFlow.type === 'processing') && (
+        <div className="foster-confirm-backdrop" onClick={closeFosterFlow}>
+          <div className="foster-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="foster-confirm-modal__title">{dog.name}</h3>
+            <p className="foster-confirm-modal__message">預かりボランティアに申し出ますか？</p>
+            {fosterError && <p className="foster-confirm-modal__error">{fosterError}</p>}
+            <div className="foster-confirm-modal__actions">
+              <button
+                type="button"
+                className="foster-confirm-modal__cancel"
+                disabled={fosterFlow.type === 'processing'}
+                onClick={closeFosterFlow}
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                className="foster-confirm-modal__submit"
+                disabled={fosterFlow.type === 'processing'}
+                onClick={handleFosterConfirmYes}
+              >
+                {fosterFlow.type === 'processing' ? '処理中…' : '申し出る'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {fosterFlow.type === 'info' && (
+        <div className="foster-confirm-backdrop" onClick={closeFosterFlow}>
+          <div className="foster-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="foster-confirm-modal__title">{dog.name} の預かり申し込み完了</h3>
+            <p className="foster-confirm-modal__message">
+              預かりの準備を始めます。保護団体とやり取りを行い、搬送方法などの打ち合わせを行なってください。
+            </p>
+            <div className="foster-confirm-modal__actions">
+              <button
+                type="button"
+                className="foster-confirm-modal__submit"
+                onClick={closeFosterFlow}
+              >
+                閉じる
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {fosterInfoPopup && (
+        <div className="foster-confirm-backdrop" onClick={() => setFosterInfoPopup(null)}>
+          <div className="foster-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="foster-confirm-modal__title">{dog.name} の預かりについて</h3>
+            <p className="foster-confirm-modal__message">{fosterInfoPopup}</p>
+            <div className="foster-confirm-modal__actions">
+              <button
+                type="button"
+                className="foster-confirm-modal__submit"
+                onClick={() => setFosterInfoPopup(null)}
+              >
+                閉じる
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

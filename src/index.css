@@ -103,25 +103,59 @@ code {
   background: var(--code-bg);
 }
 
-/* 編集ボタン等のペンアイコンの左右反転 */
+/* 編集ボタン等のペンアイコン用スタイル */
 .volunteer-dashboard__icon-edit-button,
 .org-dashboard__edit-button,
 .dog-detail__icon-edit-button,
-.media-card__edit-button,
 .org-dog-detail__edit-button,
-.org-dog-detail__media-edit-button,
 .org-dog-detail__history-edit-trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transform: scaleX(-1);
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: none !important;
+  background: transparent !important;
+  color: var(--text-h) !important;
+  border-radius: 6px !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+  opacity: 0.75 !important;
+  transition: opacity 0.2s, background-color 0.2s, transform 0.15s !important;
 }
 
 .volunteer-dashboard__icon-edit-button:hover,
 .org-dashboard__edit-button:hover,
 .dog-detail__icon-edit-button:hover,
-.media-card__edit-button:hover,
 .org-dog-detail__edit-button:hover,
+.org-dog-detail__history-edit-trigger:hover {
+  background: var(--accent-bg) !important;
+  opacity: 1 !important;
+  transform: scale(1.08) !important;
+}
+
+/* 画像カードの上の編集ボタン（画像視認性の確保） */
+.media-card__edit-button,
+.org-dog-detail__media-edit-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: none !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+  color: #ffffff !important;
+  border-radius: 50% !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(2px) !important;
+  transition: background-color 0.2s, transform 0.15s !important;
+}
+
+.media-card__edit-button:hover,
 .org-dog-detail__media-edit-button:hover {
-  transform: scaleX(-1) scale(1.05);
+  background: rgba(0, 0, 0, 0.75) !important;
+  transform: scale(1.08) !important;
 }

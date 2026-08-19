@@ -44,6 +44,54 @@
   font-weight: 600;
 }
 
+/* SNS転載禁止警告表示 */
+.gallery-screen__notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(193, 80, 46, 0.08);
+  border: 1px solid rgba(193, 80, 46, 0.25);
+  border-radius: 10px;
+  padding: 12px 16px;
+  overflow: hidden;
+  max-height: 100px;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+              max-height 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+              padding 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+              margin 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gallery-screen__notice.is-hiding {
+  opacity: 0;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-top: 0;
+  margin-bottom: -24px;
+  border-color: transparent;
+  transform: translateY(-6px);
+  pointer-events: none;
+}
+
+.gallery-screen__notice-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.gallery-screen__notice-text {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-h);
+  font-weight: 500;
+  text-align: left;
+}
+
 .gallery-screen__media-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));

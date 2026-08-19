@@ -36,6 +36,11 @@
   gap: 32px;
 }
 
+.org-dog-detail__section p {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .org-dog-detail__heading-row {
   display: flex;
   align-items: center;
@@ -58,22 +63,6 @@
 
 .org-dog-detail__edit-button {
   flex-shrink: 0;
-  border: 1px solid var(--accent-border);
-  background: var(--accent-bg);
-  color: var(--accent);
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  cursor: pointer;
-  transition: transform 0.1s;
-}
-
-.org-dog-detail__edit-button:hover {
-  transform: scaleX(-1) scale(1.05);
 }
 
 .org-dog-detail__add-media-button {
@@ -288,7 +277,7 @@
 
 .org-dog-detail__media-edit-button:hover {
   background: rgba(0, 0, 0, 0.85);
-  transform: scaleX(-1) scale(1.05);
+  transform: scale(1.05);
 }
 
 .org-dog-detail__media-container {
@@ -552,4 +541,44 @@
 
 .org-dog-detail__history-cancel-button:hover {
   background: var(--bg);
+}
+
+.org-dog-detail__history-delete-button {
+  border: 1px solid rgba(180, 40, 10, 0.4);
+  background: rgba(180, 40, 10, 0.08);
+  color: #b4280a;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.org-dog-detail__history-delete-button:hover:not(:disabled) {
+  background: #b4280a;
+  color: #ffffff;
+}
+
+.org-dog-detail__history-delete-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #b4280a;
+  font-weight: 500;
+}
+
+.org-dog-detail__history-danger-button {
+  border: none;
+  background: #b4280a;
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.org-dog-detail__history-danger-button:hover:not(:disabled) {
+  background: #902008;
 }

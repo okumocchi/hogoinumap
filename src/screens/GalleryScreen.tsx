@@ -40,6 +40,20 @@ export function GalleryScreen({ onSelectDog, onBack }: GalleryScreenProps) {
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [myLikeIds, setMyLikeIds] = useState<Record<string, string>>({}); // dogMediaId -> MediaLike.id
   const [lightboxMedia, setLightboxMedia] = useState<{ mediaType: 'PHOTO' | 'VIDEO'; url: string } | null>(null);
+  const [showNotice, setShowNotice] = useState(true);
+  const [noticeHiding, setNoticeHiding] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setNoticeHiding(true);
+      // トランジション(0.6秒)完了後にDOM上からも除去する
+      const removeTimer = setTimeout(() => {
+        setShowNotice(false);
+      }, 650);
+      return () => clearTimeout(removeTimer);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (lightboxMedia) {
@@ -293,6 +307,16 @@ export function GalleryScreen({ onSelectDog, onBack }: GalleryScreenProps) {
             人気順
           </button>
         </div>
+
+        {/* SNS転載に関する注意警告 */}
+        {showNotice && (
+          <div className={`gallery-screen__notice ${noticeHiding ? 'is-hiding' : ''}`}>
+            <span className="gallery-screen__notice-icon" aria-hidden="true">⚠️</span>
+            <p className="gallery-screen__notice-text">
+              当サイト上にある保護犬の写真・動画を許可なくSNS等に投稿しないようお願いいたします。
+            </p>
+          </div>
+        )}
 
         {loading ? (
           <p className="gallery-screen__message">メディアを読み込み中…</p>

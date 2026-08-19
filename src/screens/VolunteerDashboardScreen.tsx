@@ -12,6 +12,8 @@ import { SecondaryHeader } from '../components/SecondaryHeader';
 import './VolunteerDashboardScreen.css';
 import { type ChatThreadItem } from '../hooks/useDashboardBadges';
 import { findOrCreateChatThread } from '../lib/chat';
+import { formatApiError } from '../utils/apiErrors';
+import { EditIcon } from '../components/EditIcon';
 
 interface VolunteerDashboardScreenProps {
   volunteer: MyVolunteer;
@@ -296,7 +298,7 @@ export function VolunteerDashboardScreen({
         { authMode: 'userPool' },
       );
       if (result.errors?.length) {
-        throw new Error(result.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(result.errors));
       }
 
       // 預かり履歴に「預かり者が自分に変わった」エントリを追加する
@@ -314,7 +316,7 @@ export function VolunteerDashboardScreen({
 
       setCustodyDogs(await fetchCustodyDogs());
     } catch (err) {
-      setCustodyError(err instanceof Error ? err.message : 'エラーが発生しました。時間をおいて再度お試しください。');
+      setCustodyError(formatApiError(err));
     } finally {
       setReceivingDogId(null);
     }
@@ -353,13 +355,13 @@ export function VolunteerDashboardScreen({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await dataClient.models.Volunteer.update(volunteerInput as any);
       if (result.errors?.length) {
-        throw new Error(result.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(result.errors));
       }
 
       onUpdated();
       setMode('view');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'エラーが発生しました。時間をおいて再度お試しください。');
+      setError(formatApiError(err));
     } finally {
       setSubmitting(false);
     }
@@ -434,14 +436,14 @@ export function VolunteerDashboardScreen({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await dataClient.models.Affiliation.create(affiliationInput as any);
       if (result.errors?.length) {
-        throw new Error(result.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(result.errors));
       }
 
       setOpenRequestOrgId(null);
       setRequestMessage('');
       setAffiliations(await fetchAffiliations());
     } catch (err) {
-      setRequestError(err instanceof Error ? err.message : 'エラーが発生しました。時間をおいて再度お試しください。');
+      setRequestError(formatApiError(err));
     } finally {
       setRequesting(false);
     }
@@ -586,7 +588,7 @@ export function VolunteerDashboardScreen({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const result = await dataClient.models.FosteringSlot.update(slotInput as any);
         if (result.errors?.length) {
-          throw new Error(result.errors.map((e) => e.message).join(' / '));
+          throw new Error(formatApiError(result.errors));
         }
       } else {
         const slotInput = {
@@ -599,14 +601,14 @@ export function VolunteerDashboardScreen({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const result = await dataClient.models.FosteringSlot.create(slotInput as any);
         if (result.errors?.length) {
-          throw new Error(result.errors.map((e) => e.message).join(' / '));
+          throw new Error(formatApiError(result.errors));
         }
       }
 
       closeSlotForm();
       await refreshSlots();
     } catch (err) {
-      setSlotError(err instanceof Error ? err.message : 'エラーが発生しました。時間をおいて再度お試しください。');
+      setSlotError(formatApiError(err));
     } finally {
       setSlotSubmitting(false);
     }
@@ -618,12 +620,12 @@ export function VolunteerDashboardScreen({
     try {
       const result = await dataClient.models.FosteringSlot.delete({ id: slotId });
       if (result.errors?.length) {
-        throw new Error(result.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(result.errors));
       }
       closeSlotForm();
       await refreshSlots();
     } catch (err) {
-      setSlotError(err instanceof Error ? err.message : 'エラーが発生しました。時間をおいて再度お試しください。');
+      setSlotError(formatApiError(err));
     } finally {
       setSlotSubmitting(false);
     }
@@ -647,7 +649,7 @@ export function VolunteerDashboardScreen({
                 onClick={startEditing}
                 title="プロフィールを編集"
               >
-                ✏️
+                <EditIcon />
               </button>
             </div>
             <dl className="volunteer-dashboard__facts">

@@ -125,3 +125,12 @@ export const custodianTypeLabel: Record<CustodianType, string> = {
 export function isDogOpenForFosterOffers(dog: { seekingFoster: boolean; custodianOwnerSub?: string }): boolean {
   return dog.seekingFoster && !dog.custodianOwnerSub;
 }
+
+// ownerSubのフォーマットの違い(sub::username と sub 単独)を吸収して一致判定を行う
+export function isSameOwnerSub(sub1?: string, sub2?: string): boolean {
+  if (!sub1 || !sub2) return false;
+  if (sub1 === sub2) return true;
+  const clean1 = sub1.split('::')[0];
+  const clean2 = sub2.split('::')[0];
+  return clean1 === clean2 && clean1.length > 0;
+}

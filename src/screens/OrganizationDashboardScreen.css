@@ -73,22 +73,6 @@
 
 .org-dashboard__edit-button {
   flex-shrink: 0;
-  border: 1px solid var(--accent-border);
-  background: var(--accent-bg);
-  color: var(--accent);
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  cursor: pointer;
-  transition: transform 0.1s;
-}
-
-.org-dashboard__edit-button:hover {
-  transform: scaleX(-1) scale(1.05);
 }
 
 .org-dashboard__org-form {

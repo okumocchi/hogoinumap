@@ -15,6 +15,7 @@ import {
   genderLabel,
   isDogOpenForFosterOffers,
 } from '../utils/dog';
+import { formatApiError } from '../utils/apiErrors';
 import './OrganizationDetailScreen.css';
 
 interface OrganizationDetailScreenProps {
@@ -146,32 +147,9 @@ export function OrganizationDetailScreen({
   const [fosterFlow, setFosterFlow] = useState<FosterFlow>({ type: 'none' });
   const [fosterError, setFosterError] = useState<string | null>(null);
   const [pendingChatOrgOwnerSub, setPendingChatOrgOwnerSub] = useState<string | null>(null);
-  // 「預かり募集中」クリック時、申し出フローに進めない場合に表示する案内ポップアップ
-  const [fosterInfoPopup, setFosterInfoPopup] = useState<{ dogName: string; message: string } | null>(null);
-
   function closeFosterFlow() {
     setFosterFlow({ type: 'none' });
     setFosterError(null);
-  }
-
-  function handleFosterBadgeClick(dog: Dog) {
-    if (!viewerParticipant) {
-      setFosterInfoPopup({
-        dogName: dog.name,
-        message: '預かりボランティア登録を行い、保護団体からボランティア承認を受けてください。',
-      });
-      return;
-    }
-    if (viewerParticipant.kind === 'organization') {
-      setFosterInfoPopup({ dogName: dog.name, message: '保護犬の移管手続きを行います。(追って実装)' });
-      return;
-    }
-    if (!findMatchingSlot(dog)) {
-      setFosterInfoPopup({ dogName: dog.name, message: '条件が一致する未使用スロットがありません。' });
-      return;
-    }
-    setFosterError(null);
-    setFosterFlow({ type: 'confirm', dog });
   }
 
   async function handleFosterConfirmYes() {
@@ -205,7 +183,7 @@ export function OrganizationDetailScreen({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const matchResult = await dataClient.models.Match.create(matchInput as any);
       if (matchResult.errors?.length) {
-        throw new Error(matchResult.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(matchResult.errors));
       }
 
       // statusは変更せず(PROTECTEDのまま)、custodianOwnerSubだけ自分自身にセットする。
@@ -214,14 +192,14 @@ export function OrganizationDetailScreen({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const dogResult = await dataClient.models.Dog.update(dogUpdateInput as any);
       if (dogResult.errors?.length) {
-        throw new Error(dogResult.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(dogResult.errors));
       }
 
       setDogOverrides((prev) => ({ ...prev, [dog.id]: { custodianOwnerSub: myOwnerSub } }));
       setPendingChatOrgOwnerSub(orgOwnerSub);
       setFosterFlow({ type: 'info', dog });
     } catch (err) {
-      setFosterError(err instanceof Error ? err.message : '処理に失敗しました。時間をおいて再度お試しください。');
+      setFosterError(formatApiError(err, '処理に失敗しました。時間をおいて再度お試しください。'));
       setFosterFlow({ type: 'confirm', dog });
     }
   }
@@ -258,7 +236,7 @@ export function OrganizationDetailScreen({
     try {
       await onStartGroupChat(organizationId, organization.name);
     } catch (err) {
-      setGroupChatError(err instanceof Error ? err.message : 'グループチャットの開始に失敗しました。');
+      setGroupChatError(formatApiError(err, 'グループチャットの開始に失敗しました。'));
     } finally {
       setGroupChatStarting(false);
     }
@@ -276,7 +254,7 @@ export function OrganizationDetailScreen({
       }
       await onStartChat({ kind: 'organization', id: organizationId, name: organization.name, ownerSub });
     } catch (err) {
-      setChatButtonError(err instanceof Error ? err.message : 'チャットの開始に失敗しました。');
+      setChatButtonError(formatApiError(err, 'チャットの開始に失敗しました。'));
     } finally {
       setChatStarting(false);
     }
@@ -405,15 +383,7 @@ export function OrganizationDetailScreen({
                     {/* <Badge tone="neutral">{effectiveDogStatusLabel(dog)}</Badge> */}
                     {dog.seekingAdopter && <Badge tone="success">里親募集中</Badge>}
                     {isDogOpenForFosterOffers(dog) && (
-                      <Badge
-                        tone="accent"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleFosterBadgeClick(dog);
-                        }}
-                      >
-                        預かり募集中
-                      </Badge>
+                      <Badge tone="accent">預かり募集中</Badge>
                     )}
                   </span>
                 </div>
@@ -457,23 +427,7 @@ export function OrganizationDetailScreen({
         </div>
       )}
 
-      {fosterInfoPopup && (
-        <div className="foster-confirm-backdrop" onClick={() => setFosterInfoPopup(null)}>
-          <div className="foster-confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="foster-confirm-modal__title">{fosterInfoPopup.dogName}</h3>
-            <p className="foster-confirm-modal__message">{fosterInfoPopup.message}</p>
-            <div className="foster-confirm-modal__actions">
-              <button
-                type="button"
-                className="foster-confirm-modal__button foster-confirm-modal__button--primary"
-                onClick={() => setFosterInfoPopup(null)}
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {fosterFlow.type === 'info' && (
         <div className="foster-confirm-backdrop" onClick={handleFosterInfoClose}>

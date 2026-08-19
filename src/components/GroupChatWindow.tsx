@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { dataClient } from '../lib/dataClient';
+import { formatApiError } from '../utils/apiErrors';
 import './ChatWindow.css';
 
 interface GroupChatMessageItem {
@@ -109,14 +110,14 @@ export function GroupChatWindow({ threadId, myKey, myName, organizationName, onC
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await dataClient.models.GroupChatMessage.create(messageInput as any);
       if (result.errors?.length) {
-        throw new Error(result.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(result.errors));
       }
       setDraft('');
       const updatedMessages = await fetchMessages();
       setMessages(updatedMessages);
       scrollToBottom(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'メッセージの送信に失敗しました。時間をおいて再度お試しください。');
+      setError(formatApiError(err, 'メッセージの送信に失敗しました。時間をおいて再度お試しください。'));
     } finally {
       setSending(false);
     }

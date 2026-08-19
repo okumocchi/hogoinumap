@@ -5,6 +5,7 @@ import { translateAuthError } from '../utils/authErrors';
 import { geocodeAddress } from '../utils/geocode';
 import { PREFECTURES } from '../utils/prefectures';
 import { SecondaryHeader } from '../components/SecondaryHeader';
+import { formatApiError } from '../utils/apiErrors';
 import './VolunteerSignUpScreen.css';
 
 interface VolunteerSignUpScreenProps {
@@ -88,7 +89,7 @@ export function VolunteerSignUpScreen({ onBack, onComplete }: VolunteerSignUpScr
     const result = await dataClient.models.Volunteer.create(volunteerInput as any);
 
     if (result.errors?.length) {
-      throw new Error(result.errors.map((e) => e.message).join(' / '));
+      throw new Error(formatApiError(result.errors));
     }
 
     setStep('done');
@@ -130,7 +131,12 @@ export function VolunteerSignUpScreen({ onBack, onComplete }: VolunteerSignUpScr
         setStep('confirm');
       }
     } catch (err) {
-      setError(translateAuthError(err));
+      const authErr = translateAuthError(err);
+      if (authErr !== 'エラーが発生しました。時間をおいて再度お試しください。') {
+        setError(authErr);
+      } else {
+        setError(formatApiError(err));
+      }
     } finally {
       setSubmitting(false);
     }

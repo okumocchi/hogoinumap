@@ -13,6 +13,8 @@ import { SecondaryHeader } from '../components/SecondaryHeader';
 import './OrganizationDashboardScreen.css';
 import { findOrCreateChatThread } from '../lib/chat';
 import { type ChatThreadItem } from '../hooks/useDashboardBadges';
+import { formatApiError } from '../utils/apiErrors';
+import { EditIcon } from '../components/EditIcon';
 
 interface ApprovedVolunteer {
   id: string;
@@ -404,14 +406,69 @@ export function OrganizationDashboardScreen({
   } | null>(null);
 
   function handleInitiateToggleModerator(volunteer: ApprovedVolunteer) {
+    if (isModeratorViewer) return;
     setModeratorConfirm({
       volunteer,
       isGranting: !volunteer.isModerator,
     });
   }
 
+  async function syncOwnersForOrganization(volunteersList?: ApprovedVolunteer[]) {
+    try {
+      const vols = volunteersList ?? approvedVolunteers;
+      const ownersSet = new Set<string>();
+
+      try {
+        const { userId, username } = await getCurrentUser();
+        ownersSet.add(`${userId}::${username}`);
+      } catch {
+        // ignore
+      }
+
+      if (organization.ownerSub) {
+        ownersSet.add(organization.ownerSub);
+      }
+
+      vols.forEach((v) => {
+        if (v.isModerator && v.ownerSub) {
+          ownersSet.add(v.ownerSub);
+        }
+      });
+
+      const newOwners = Array.from(ownersSet);
+
+      // Organization の owners 更新
+      await (dataClient.models.Organization.update as any)(
+        { id: organization.id, owners: newOwners },
+        { authMode: 'userPool' },
+      );
+
+      // 団体の全 Dog の owners 更新
+      const allDogsResult = await dataClient.models.Dog.listByOrganization(
+        { organizationId: organization.id },
+        { authMode: 'userPool' },
+      );
+
+      for (const dogItem of allDogsResult.data) {
+        const currentOwners = (dogItem.owners ?? []).filter((v): v is string => !!v);
+        const isSame =
+          currentOwners.length === newOwners.length &&
+          newOwners.every((o) => currentOwners.includes(o));
+
+        if (!isSame) {
+          await (dataClient.models.Dog.update as any)(
+            { id: dogItem.id, owners: newOwners },
+            { authMode: 'userPool' },
+          );
+        }
+      }
+    } catch (err) {
+      console.error('Failed to sync owners for organization:', err);
+    }
+  }
+
   async function handleConfirmToggleModerator() {
-    if (!moderatorConfirm) return;
+    if (!moderatorConfirm || isModeratorViewer) return;
     const { volunteer, isGranting } = moderatorConfirm;
     setModeratorConfirm(null);
     setTogglingModeratorId(volunteer.id);
@@ -436,7 +493,9 @@ export function OrganizationDashboardScreen({
           { authMode: 'userPool' },
         );
       }
-      setApprovedVolunteers(await fetchApprovedVolunteers());
+      const updatedVolunteers = await fetchApprovedVolunteers();
+      setApprovedVolunteers(updatedVolunteers);
+      await syncOwnersForOrganization(updatedVolunteers);
     } catch (err) {
       console.error('Failed to toggle moderator status:', err);
     } finally {
@@ -467,13 +526,13 @@ export function OrganizationDashboardScreen({
           { authMode: 'userPool' },
         );
         if (result.errors?.length) {
-          throw new Error(result.errors.map((e) => e.message).join(' / '));
+          throw new Error(formatApiError(result.errors));
         }
       }
       setAffiliationRequests(await fetchAffiliationRequests());
       setApprovedVolunteers(await fetchApprovedVolunteers());
     } catch (err) {
-      setAffiliationError(err instanceof Error ? err.message : 'エラーが発生しました。時間をおいて再度お試しください。');
+      setAffiliationError(formatApiError(err));
     } finally {
       setRespondingAffiliationId(null);
     }
@@ -524,7 +583,7 @@ export function OrganizationDashboardScreen({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await dataClient.models.Dog.create(dogInput as any);
       if (result.errors?.length) {
-        throw new Error(result.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(result.errors));
       }
 
       // 預かり履歴の初回エントリ(保護時点の預かり者=団体自身)を記録する
@@ -545,7 +604,7 @@ export function OrganizationDashboardScreen({
       setMode({ screen: 'list' });
       setDogs(await fetchDogs());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'エラーが発生しました。時間をおいて再度お試しください。');
+      setError(formatApiError(err));
     } finally {
       setSubmitting(false);
     }
@@ -570,7 +629,7 @@ export function OrganizationDashboardScreen({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await dataClient.models.Dog.update(dogInput as any);
       if (result.errors?.length) {
-        throw new Error(result.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(result.errors));
       }
 
       // ステータスが変更になった際（「搬送中」を除く）、日付情報を預かり履歴として追加する
@@ -591,7 +650,7 @@ export function OrganizationDashboardScreen({
       setDogs(await fetchDogs());
       setMode({ screen: 'dog-detail', dogId });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'エラーが発生しました。時間をおいて再度お試しください。');
+      setError(formatApiError(err));
     } finally {
       setSubmitting(false);
     }
@@ -621,6 +680,7 @@ export function OrganizationDashboardScreen({
       // 所在地が変わった場合に備え、地図表示用の緯度経度も取り直す
       const geocoded = await geocodeAddress(orgForm.prefecture, orgForm.city, orgForm.addressLine);
 
+      const owners = await getDogOwners();
       const orgInput = {
         id: organization.id,
         name: orgForm.name,
@@ -633,18 +693,19 @@ export function OrganizationDashboardScreen({
         contactPhone: orgForm.contactPhone || undefined,
         wishlistUrl: orgForm.wishlistUrl || undefined,
         websiteUrl: orgForm.websiteUrl || undefined,
+        owners,
       };
       // Dog登録と同様、data-schemaの型推論バグを回避するためas anyを使用
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await dataClient.models.Organization.update(orgInput as any);
       if (result.errors?.length) {
-        throw new Error(result.errors.map((e) => e.message).join(' / '));
+        throw new Error(formatApiError(result.errors));
       }
 
       onUpdated();
       setEditingOrgInfo(false);
     } catch (err) {
-      setOrgError(err instanceof Error ? err.message : 'エラーが発生しました。時間をおいて再度お試しください。');
+      setOrgError(formatApiError(err));
     } finally {
       setOrgSubmitting(false);
     }
@@ -772,7 +833,7 @@ export function OrganizationDashboardScreen({
                   onClick={startEditingOrgInfo}
                   title="基本情報を編集"
                 >
-                  ✏️
+                  <EditIcon />
                 </button>
               )}
             </div>
@@ -899,16 +960,16 @@ export function OrganizationDashboardScreen({
                                           </span>
                                         )}
                                         {onSelectVolunteer ? (
-                                           <button
-                                             type="button"
-                                             className="org-dashboard__volunteer-link"
-                                             onClick={() => onSelectVolunteer(vol.id)}
-                                           >
-                                             {vol.handleName}
-                                           </button>
-                                         ) : (
-                                           <span className="org-dashboard__compact-name">{vol.handleName}</span>
-                                         )}
+                                          <button
+                                            type="button"
+                                            className="org-dashboard__volunteer-link"
+                                            onClick={() => onSelectVolunteer(vol.id)}
+                                          >
+                                            {vol.handleName}
+                                          </button>
+                                        ) : (
+                                          <span className="org-dashboard__compact-name">{vol.handleName}</span>
+                                        )}
                                         {hasUnread && <span className="org-dashboard__unread-indicator">🔴 未読あり</span>}
                                       </div>
                                       <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -1119,7 +1180,7 @@ export function OrganizationDashboardScreen({
                               <span className="org-dashboard__dog-name">
                                 {dog.name}
                                 {dog.status === 'PROTECTED' && dog.custodianOwnerSub && (
-                                  <span className="org-dashboard__dog-badge">申し出あり</span>
+                                  <span className="org-dashboard__dog-badge">預かり申し出あり</span>
                                 )}
                               </span>
                               <span className="org-dashboard__dog-status">{effectiveDogStatusLabel(dog)}</span>
