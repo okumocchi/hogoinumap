@@ -27,6 +27,8 @@ interface VolunteerDashboardScreenProps {
   onStartGroupChat: (orgId: string, orgName: string) => Promise<void>;
   groupChatUnreads: Record<string, number>;
   onOpenModeratorDashboard?: (organizationId: string) => void;
+  pendingAffiliations?: number;
+  pendingMatchOffers?: number;
 }
 
 type Mode = 'view' | 'edit';
@@ -179,6 +181,8 @@ export function VolunteerDashboardScreen({
   onStartGroupChat,
   groupChatUnreads,
   onOpenModeratorDashboard,
+  pendingAffiliations,
+  pendingMatchOffers,
 }: VolunteerDashboardScreenProps) {
   const [mode, setMode] = useState<Mode>('view');
   const [form, setForm] = useState<FormState>(volunteerToFormState(volunteer));
@@ -690,14 +694,21 @@ export function VolunteerDashboardScreen({
                   .map((aff) => {
                     const org = registeredOrganizations.find((o) => o.id === aff.organizationId);
                     const orgName = org?.name ?? '保護団体';
+                    const hasModNotification = (pendingAffiliations ?? 0) > 0 || (pendingMatchOffers ?? 0) > 0;
                     return (
                       <button
                         key={aff.organizationId}
                         type="button"
                         className="volunteer-dashboard__request-toggle"
                         onClick={() => onOpenModeratorDashboard?.(aff.organizationId)}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                       >
-                        🎖️ {orgName}のダッシュボードを開く
+                        <span>🎖️ {orgName}のダッシュボードを開く</span>
+                        {hasModNotification && (
+                          <span style={{ background: '#d93829', color: '#fff', fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '999px' }}>
+                            未対応の通知あり
+                          </span>
+                        )}
                       </button>
                     );
                   })}

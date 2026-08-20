@@ -719,35 +719,45 @@ export function OrganizationDashboardScreen({
 
     setOrgSubmitting(true);
     try {
-      // 所在地が変わった場合に備え、地図表示用の緯度経度も取り直す
+      // 所在地が変わった場合に備え、地図表示用の緯度経度も取り直す(取得できない場合は既存の値を維持)
       const geocoded = await geocodeAddress(orgForm.prefecture, orgForm.city, orgForm.addressLine);
 
-      const owners = await getDogOwners();
-      const orgInput = {
+      const orgInput: Record<string, any> = {
         id: organization.id,
         name: orgForm.name,
         prefecture: orgForm.prefecture,
         city: orgForm.city,
         addressLine: orgForm.addressLine,
-        latitude: geocoded?.latitude,
-        longitude: geocoded?.longitude,
-        contactEmail: orgForm.contactEmail || undefined,
-        contactPhone: orgForm.contactPhone || undefined,
-        wishlistUrl: orgForm.wishlistUrl || undefined,
-        websiteUrl: orgForm.websiteUrl || undefined,
-        owners,
       };
-      // Dog登録と同様、data-schemaの型推論バグを回避するためas anyを使用
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await dataClient.models.Organization.update(orgInput as any);
+
+      const lat = geocoded?.latitude ?? organization.latitude;
+      if (typeof lat === 'number' && !isNaN(lat)) {
+        orgInput.latitude = lat;
+      }
+
+      const lng = geocoded?.longitude ?? organization.longitude;
+      if (typeof lng === 'number' && !isNaN(lng)) {
+        orgInput.longitude = lng;
+      }
+
+      orgInput.contactEmail = orgForm.contactEmail.trim() || null;
+      orgInput.contactPhone = orgForm.contactPhone.trim() || null;
+      orgInput.wishlistUrl = orgForm.wishlistUrl.trim() || null;
+      orgInput.websiteUrl = orgForm.websiteUrl.trim() || null;
+
+      // 明示的に authMode: 'userPool' を指定して団体情報を更新する
+      const result = await dataClient.models.Organization.update(orgInput as any, { authMode: 'userPool' });
       if (result.errors?.length) {
-        throw new Error(formatApiError(result.errors));
+        const errorMsgs = result.errors.map((e: any) => e.message).join(' / ');
+        throw new Error(errorMsgs);
       }
 
       onUpdated();
       setEditingOrgInfo(false);
-    } catch (err) {
-      setOrgError(formatApiError(err));
+    } catch (err: any) {
+      console.error('Failed to update organization info:', err);
+      const rawMsg = err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+      setOrgError(`更新エラー [送信キー: ${Object.keys(orgForm).join(', ')}]: ${rawMsg}`);
     } finally {
       setOrgSubmitting(false);
     }
@@ -864,11 +874,11 @@ export function OrganizationDashboardScreen({
               </button>
             </div>
           </form>
-        ) : (
+        ) : mode.screen === 'list' ? (
           <>
             <div className="org-dashboard__heading-row">
               <h1>{organization.name}</h1>
-              {mode.screen === 'list' && (
+              {!isModeratorViewer && (
                 <button
                   type="button"
                   className="org-dashboard__edit-button"
@@ -921,13 +931,14 @@ export function OrganizationDashboardScreen({
               </div>
             </dl>
           </>
-        )}
+        ) : null}
 
         {!editingOrgInfo && mode.screen === 'list' && (
           <>
             {/* 1. 登録ボランティア一覧 (アコーディオンUI) */}
             <section className="org-dashboard__section">
               {(() => {
+                const hasGroupUnread = (groupChatUnreads[organization.id] ?? 0) > 0;
                 const hasVolunteerUnread = approvedVolunteers.some((vol) => {
                   const volKey = `volunteer#${vol.id}`;
                   const matchingThread = chatThreads.find(
@@ -935,6 +946,7 @@ export function OrganizationDashboardScreen({
                   );
                   return matchingThread ? (chatUnreads[matchingThread.id] ?? 0) > 0 : false;
                 });
+                const hasAnyUnreadInSection = hasGroupUnread || hasVolunteerUnread;
 
                 return (
                   <div className="org-dashboard__accordion">
@@ -945,7 +957,9 @@ export function OrganizationDashboardScreen({
                     >
                       <div className="org-dashboard__accordion-title">
                         <span>👥 登録ボランティア一覧 ({approvedVolunteers.length}名)</span>
-                        {hasVolunteerUnread && <span className="org-dashboard__unread-indicator">🔴 未読あり</span>}
+                        {hasAnyUnreadInSection && (
+                          <span className="org-dashboard__unread-indicator">🔴 未読あり</span>
+                        )}
                       </div>
                       <span className="org-dashboard__accordion-icon">{isVolunteersOpen ? '▲ 閉じる' : '▼ 表示する'}</span>
                     </button>

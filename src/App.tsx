@@ -259,6 +259,9 @@ function App() {
         viewerParticipant={viewerParticipant}
         onStartChat={handleStartChat}
         onStartGroupChat={handleStartGroupChat}
+        chatThreads={badges.chatThreads}
+        chatUnreads={badges.chatUnreads}
+        groupChatUnreads={badges.groupChatUnreads}
       />
     );
   } else if (route.screen === 'volunteer-detail') {
@@ -362,6 +365,8 @@ function App() {
         onStartGroupChat={handleStartGroupChat}
         groupChatUnreads={badges.groupChatUnreads}
         onOpenModeratorDashboard={(orgId) => pushRoute({ screen: 'org-dashboard', moderatorOrgId: orgId })}
+        pendingAffiliations={badges.pendingAffiliations}
+        pendingMatchOffers={badges.pendingMatchOffers}
       />
     ) : null;
   } else if (route.screen === 'dog-list') {

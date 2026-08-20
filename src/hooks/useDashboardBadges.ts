@@ -81,6 +81,9 @@ export function useDashboardBadges(
       let unreadGroupChats = 0;
       const groupChatUnreads: Record<string, number> = {};
 
+      // モデレータとして参加している団体IDのセット
+      const moderatedOrgIds = new Set<string>();
+
       // 1. 団体側のデータ取得
       if (organizationId) {
         // 承認待ちの所属申請
@@ -88,11 +91,11 @@ export function useDashboardBadges(
           { organizationId, status: { eq: 'PENDING' } },
           { authMode: 'userPool' }
         );
-        pendingAffiliations = affResult.data.length;
+        pendingAffiliations += affResult.data.length;
 
         // 保留中の預かり申し出 (Match.list は自分に関係するものだけを返す認可ルール)
         const matchResult = await dataClient.models.Match.list({ authMode: 'userPool' });
-        pendingMatchOffers = matchResult.data.filter(
+        pendingMatchOffers += matchResult.data.filter(
           (match) => match.status === 'REQUESTED' || match.status === 'NEGOTIATING'
         ).length;
       }
@@ -108,6 +111,42 @@ export function useDashboardBadges(
           { authMode: 'userPool' }
         );
         transitDogs = dogResult.data.filter((dog) => dog.status === 'IN_TRANSIT').length;
+
+        // ボランティアがモデレータとして承認されている団体を取得
+        try {
+          const affResult = await dataClient.models.Affiliation.list({ authMode: 'userPool' });
+          const moderatedAffs = affResult.data.filter(
+            (a) => a.volunteerId === volunteerId && a.status === 'APPROVED' && a.isModerator
+          );
+          moderatedAffs.forEach((a) => moderatedOrgIds.add(a.organizationId));
+
+          // モデレータを務める各団体宛ての通知(承認待ち所属申請、預かり申し出)を同期集計
+          for (const modOrgId of Array.from(moderatedOrgIds)) {
+            // モデレータ団体の未承認所属申請
+            try {
+              const modAffResult = await dataClient.models.Affiliation.listByOrganizationAndStatus(
+                { organizationId: modOrgId, status: { eq: 'PENDING' } },
+                { authMode: 'userPool' }
+              );
+              pendingAffiliations += modAffResult.data.length;
+            } catch (err) {
+              console.error('Failed to load pending affiliations for moderated org:', err);
+            }
+
+            // モデレータ団体の預かり申し出 (Match)
+            try {
+              const matchResult = await dataClient.models.Match.list({ authMode: 'userPool' });
+              const modMatches = matchResult.data.filter(
+                (match) => match.status === 'REQUESTED' || match.status === 'NEGOTIATING'
+              );
+              pendingMatchOffers += modMatches.length;
+            } catch (err) {
+              console.error('Failed to load pending matches for moderated org:', err);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to load affiliations for volunteer badges:', err);
+        }
       }
 
       // 3. チャット未読のデータ取得
@@ -240,19 +279,19 @@ export function useDashboardBadges(
           }
         });
 
-        // 3. 所属申請通知
+        // 3. 所属申請通知 (団体またはモデレータ団体宛て)
         if (newBadges.pendingAffiliations > prev.pendingAffiliations) {
-          sendWebNotification('所属申請', {
+          sendWebNotification('所属申請通知', {
             body: `新しいボランティア所属申請が届いています（${newBadges.pendingAffiliations}件）`,
             tag: 'affiliation',
           });
         }
 
-        // 4. 預かりオファー通知
+        // 4. 預かり申し出通知 (団体またはモデレータ団体宛て)
         if (newBadges.pendingMatchOffers > prev.pendingMatchOffers) {
-          sendWebNotification('預かり申請', {
-            body: `保護犬の預かり申し出・交渉が更新されました（${newBadges.pendingMatchOffers}件）`,
-            tag: 'match',
+          sendWebNotification('預かり申し出通知', {
+            body: `新しい預かりボランティアの申し出が届いています（${newBadges.pendingMatchOffers}件）`,
+            tag: 'match_offer',
           });
         }
 

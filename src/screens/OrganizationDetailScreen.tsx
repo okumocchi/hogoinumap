@@ -16,15 +16,20 @@ import {
   isDogOpenForFosterOffers,
 } from '../utils/dog';
 import { formatApiError } from '../utils/apiErrors';
+import { type ChatThreadItem } from '../hooks/useDashboardBadges';
 import './OrganizationDetailScreen.css';
+import './OrganizationDashboardScreen.css';
 
 interface OrganizationDetailScreenProps {
   organizationId: string;
   onBack: () => void;
   onSelectDog: (dogId: string) => void;
-  viewerParticipant: { kind: ChatParticipantKind; id: string } | null;
+  viewerParticipant?: { kind: ChatParticipantKind; id: string } | null;
   onStartChat: (other: ChatParticipant) => Promise<void>;
   onStartGroupChat: (orgId: string, orgName: string) => Promise<void>;
+  chatThreads?: ChatThreadItem[];
+  chatUnreads?: Record<string, number>;
+  groupChatUnreads?: Record<string, number>;
 }
 
 interface FosteringSlotCondition {
@@ -44,14 +49,15 @@ export function OrganizationDetailScreen({
   organizationId,
   onBack,
   onSelectDog,
-  viewerParticipant,
   onStartChat,
   onStartGroupChat,
+  chatThreads = [],
+  chatUnreads = {},
+  groupChatUnreads = {},
 }: OrganizationDetailScreenProps) {
   const registeredOrganizations = useRegisteredOrganizations();
   const allOrganizations: Organization[] = registeredOrganizations;
   const organization = allOrganizations.find((org) => org.id === organizationId);
-  const isRegisteredOrg = registeredOrganizations.some((org) => org.id === organizationId);
 
   const registeredDogs = useRegisteredDogs();
   const allDogs: Dog[] = registeredDogs;
@@ -100,7 +106,7 @@ export function OrganizationDetailScreen({
       ]);
       if (cancelled) return;
 
-      const approved = affiliationResult.data.some(
+  const approved = affiliationResult.data.some(
         (affiliation) => affiliation.organizationId === organizationId && affiliation.status === 'APPROVED',
       );
       setIsApprovedVolunteer(approved);
@@ -127,6 +133,89 @@ export function OrganizationDetailScreen({
       cancelled = true;
     };
   }, [myVolunteer, organizationId]);
+
+  // 承認済み所属ボランティアの場合に表示する「登録ボランティア一覧」
+  const [approvedVolunteers, setApprovedVolunteers] = useState<{
+    id: string;
+    affiliationId: string;
+    handleName: string;
+    prefecture: string;
+    city: string;
+    ownerSub: string;
+    isModerator: boolean;
+  }[]>([]);
+  const [loadingApprovedVolunteers, setLoadingApprovedVolunteers] = useState(true);
+  const [isVolunteersOpen, setIsVolunteersOpen] = useState(false);
+  const [openingChatVolunteerId, setOpeningChatVolunteerId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadApprovedVolunteers() {
+      if (!isApprovedVolunteer) {
+        setApprovedVolunteers([]);
+        setLoadingApprovedVolunteers(false);
+        return;
+      }
+
+      try {
+        const result = await dataClient.models.Affiliation.listByOrganizationAndStatus(
+          { organizationId, status: { eq: 'APPROVED' } },
+          { authMode: 'userPool' },
+        );
+        const volunteers = await Promise.all(
+          result.data.map(async (affiliation) => {
+            const volRes = await dataClient.models.Volunteer.get(
+              { id: affiliation.volunteerId },
+              { authMode: 'userPool' },
+            );
+            if (!volRes.data) return null;
+            return {
+              id: volRes.data.id,
+              affiliationId: affiliation.id,
+              handleName: volRes.data.handleName,
+              prefecture: volRes.data.prefecture,
+              city: volRes.data.city,
+              ownerSub: volRes.data.ownerSub ?? '',
+              isModerator: affiliation.isModerator ?? false,
+            };
+          }),
+        );
+        if (!cancelled) {
+          setApprovedVolunteers(volunteers.filter((v): v is NonNullable<typeof v> => v !== null));
+        }
+      } catch (err) {
+        console.error('Failed to fetch approved volunteers for org detail:', err);
+      } finally {
+        if (!cancelled) {
+          setLoadingApprovedVolunteers(false);
+        }
+      }
+    }
+
+    loadApprovedVolunteers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationId, isApprovedVolunteer]);
+
+  async function handleOpenVolunteerChat(volunteer: { id: string; handleName: string; ownerSub: string }) {
+    if (!organization) return;
+    setOpeningChatVolunteerId(volunteer.id);
+    try {
+      await onStartChat({
+        kind: 'volunteer',
+        id: volunteer.id,
+        name: volunteer.handleName,
+        ownerSub: volunteer.ownerSub,
+      });
+    } catch (err) {
+      console.error('Failed to open chat with volunteer:', err);
+    } finally {
+      setOpeningChatVolunteerId(null);
+    }
+  }
 
   function findMatchingSlot(dog: {
     gender: DogGender;
@@ -217,46 +306,17 @@ export function OrganizationDetailScreen({
     }
   }
 
-  // 詳細ページからのチャット開始(預かりの申し出とは独立した導線)
-  const canChatWithOrg =
-    !!viewerParticipant &&
-    isRegisteredOrg &&
-    !(viewerParticipant.kind === 'organization' && viewerParticipant.id === organizationId);
-  const [chatStarting, setChatStarting] = useState(false);
-  const [chatButtonError, setChatButtonError] = useState<string | null>(null);
-
-  const canJoinGroupChat = !!viewerParticipant && isApprovedVolunteer;
   const [groupChatStarting, setGroupChatStarting] = useState(false);
-  const [groupChatError, setGroupChatError] = useState<string | null>(null);
 
   async function handleStartGroupChatButton() {
     if (!organization) return;
     setGroupChatStarting(true);
-    setGroupChatError(null);
     try {
       await onStartGroupChat(organizationId, organization.name);
     } catch (err) {
-      setGroupChatError(formatApiError(err, 'グループチャットの開始に失敗しました。'));
+      console.error('Failed to start group chat:', err);
     } finally {
       setGroupChatStarting(false);
-    }
-  }
-
-  async function handleStartChatButton() {
-    if (!organization) return;
-    setChatStarting(true);
-    setChatButtonError(null);
-    try {
-      const orgResult = await dataClient.models.Organization.get({ id: organizationId }, { authMode: 'userPool' });
-      const ownerSub = orgResult.data?.ownerSub;
-      if (!ownerSub) {
-        throw new Error('この団体とはチャットを開始できません。');
-      }
-      await onStartChat({ kind: 'organization', id: organizationId, name: organization.name, ownerSub });
-    } catch (err) {
-      setChatButtonError(formatApiError(err, 'チャットの開始に失敗しました。'));
-    } finally {
-      setChatStarting(false);
     }
   }
 
@@ -327,31 +387,115 @@ export function OrganizationDetailScreen({
             </div>
           )}
         </dl>
-        {canChatWithOrg && (
-          <div className="organization-detail__chat-action">
-            <button
-              type="button"
-              className="organization-detail__chat-button"
-              onClick={handleStartChatButton}
-              disabled={chatStarting}
-            >
-              {chatStarting ? '開始しています…' : 'チャットを開始'}
-            </button>
-            {chatButtonError && <p className="organization-detail__error">{chatButtonError}</p>}
-          </div>
-        )}
-        {canJoinGroupChat && (
-          <div className="organization-detail__chat-action" style={{ marginTop: '12px' }}>
-            <button
-              type="button"
-              className="organization-detail__chat-button organization-detail__chat-button--group"
-              onClick={handleStartGroupChatButton}
-              disabled={groupChatStarting}
-            >
-              {groupChatStarting ? '開始しています…' : 'グループチャットを開始'}
-            </button>
-            {groupChatError && <p className="organization-detail__error">{groupChatError}</p>}
-          </div>
+
+        {/* 承認済み預かりボランティアの場合、登録ボランティア一覧UIを表示 */}
+        {isApprovedVolunteer && (
+          <section className="org-dashboard__section" style={{ marginTop: '24px', marginBottom: '24px' }}>
+            {(() => {
+              const hasGroupUnread = (groupChatUnreads[organizationId] ?? 0) > 0;
+              const hasVolunteerUnread = approvedVolunteers.some((vol) => {
+                const volKey = `volunteer#${vol.id}`;
+                const matchingThread = chatThreads.find(
+                  (t) => t.participantAKey === volKey || t.participantBKey === volKey,
+                );
+                return matchingThread ? (chatUnreads[matchingThread.id] ?? 0) > 0 : false;
+              });
+              const hasAnyUnreadInSection = hasGroupUnread || hasVolunteerUnread;
+
+              return (
+                <div className="org-dashboard__accordion">
+                  <button
+                    type="button"
+                    className="org-dashboard__accordion-header"
+                    onClick={() => setIsVolunteersOpen((prev) => !prev)}
+                  >
+                    <div className="org-dashboard__accordion-title">
+                      <span>👥 登録ボランティア一覧 ({approvedVolunteers.length}名)</span>
+                      {hasAnyUnreadInSection && (
+                        <span className="org-dashboard__unread-indicator">🔴 未読あり</span>
+                      )}
+                    </div>
+                    <span className="org-dashboard__accordion-icon">
+                      {isVolunteersOpen ? '▲ 閉じる' : '▼ 表示する'}
+                    </span>
+                  </button>
+
+                  {isVolunteersOpen && (
+                    <div className="org-dashboard__accordion-content">
+                      <ul className="org-dashboard__compact-list">
+                        {/* 全員グループチャット */}
+                        <li className="org-dashboard__compact-item org-dashboard__compact-item--group">
+                          <div className="org-dashboard__compact-info">
+                            <span className="org-dashboard__compact-name">📢 全員グループチャット</span>
+                            {hasGroupUnread && <span className="org-dashboard__unread-indicator">🔴 未読あり</span>}
+                          </div>
+                          <button
+                            type="button"
+                            className="org-dashboard__chat-button org-dashboard__chat-button--sm"
+                            onClick={handleStartGroupChatButton}
+                            disabled={groupChatStarting}
+                          >
+                            {groupChatStarting ? '開始中…' : 'グループチャット'}
+                          </button>
+                        </li>
+
+                        {/* 承認済み個別の登録ボランティア */}
+                        {loadingApprovedVolunteers ? (
+                          <li className="org-dashboard__empty" style={{ padding: '8px 0' }}>読み込み中…</li>
+                        ) : approvedVolunteers.length === 0 ? (
+                          <li className="org-dashboard__empty" style={{ padding: '8px 0' }}>承認済みの登録ボランティアはまだいません。</li>
+                        ) : (
+                          approvedVolunteers.map((vol) => {
+                            const volKey = `volunteer#${vol.id}`;
+                            const matchingThread = chatThreads.find(
+                              (t) => t.participantAKey === volKey || t.participantBKey === volKey,
+                            );
+                            const hasUnread = matchingThread ? (chatUnreads[matchingThread.id] ?? 0) > 0 : false;
+
+                            return (
+                              <li key={vol.id} className="org-dashboard__compact-item">
+                                <div className="org-dashboard__compact-info">
+                                  {vol.isModerator && (
+                                    <span
+                                      title="モデレータ権限"
+                                      style={{
+                                        fontSize: '14px',
+                                        lineHeight: 1,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        cursor: 'help',
+                                      }}
+                                    >
+                                      🎖️
+                                    </span>
+                                  )}
+                                  <span className="org-dashboard__compact-name">{vol.handleName}</span>
+                                  <span className="org-dashboard__compact-meta">
+                                    ({vol.prefecture} {vol.city})
+                                  </span>
+                                  {hasUnread && <span className="org-dashboard__unread-indicator">🔴 未読あり</span>}
+                                </div>
+                                {myVolunteer && vol.id !== myVolunteer.id && (
+                                  <button
+                                    type="button"
+                                    className="org-dashboard__chat-button org-dashboard__chat-button--sm"
+                                    disabled={openingChatVolunteerId === vol.id}
+                                    onClick={() => handleOpenVolunteerChat(vol)}
+                                  >
+                                    {openingChatVolunteerId === vol.id ? '…' : 'チャット'}
+                                  </button>
+                                )}
+                              </li>
+                            );
+                          })
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </section>
         )}
 
         <h2 className="organization-detail__section-title">現在保護中の保護犬</h2>
