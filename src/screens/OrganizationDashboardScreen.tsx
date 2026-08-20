@@ -1245,7 +1245,7 @@ export function OrganizationDashboardScreen({
                                 )}
                                 {isDogOpenForFosterOffers(dog) && (
                                   <span className="org-dashboard__dog-badge org-dashboard__dog-badge--foster">
-                                    預かりボランティア募集中
+                                    預かり募集中
                                   </span>
                                 )}
                                 {dog.status === 'PROTECTED' && dog.custodianOwnerSub && (

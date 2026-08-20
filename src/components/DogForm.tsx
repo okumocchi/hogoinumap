@@ -251,7 +251,7 @@ export function DogForm({ initialValues, submitLabel, submitting, submitError, o
           checked={form.seekingFoster}
           onChange={(e) => updateField('seekingFoster', e.target.checked)}
         />
-        <span>預かりボランティア募集中</span>
+        <span>預かり募集中</span>
       </label>
 
       {displayError && <p className="dog-form__error">{displayError}</p>}

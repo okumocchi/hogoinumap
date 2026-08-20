@@ -114,7 +114,7 @@ export function DogListScreen({
         </label> */}
         <label className="dog-list-screen__filter-checkbox">
           <input type="checkbox" checked={seekingOnly} onChange={(e) => setSeekingOnly(e.target.checked)} />
-          預かりボランティア募集中のみ
+          預かり募集中のみ
         </label>
       </div>
 

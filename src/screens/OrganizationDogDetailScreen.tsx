@@ -517,7 +517,7 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
             <Badge tone="neutral">{effectiveDogStatusLabel(dog)}</Badge>
             {dog.seekingAdopter && <Badge tone="success">里親募集中</Badge>}
-            {isDogOpenForFosterOffers(dog) && <Badge tone="accent">預かりボランティア募集中</Badge>}
+            {isDogOpenForFosterOffers(dog) && <Badge tone="accent">預かり募集中</Badge>}
           </div>
 
           <dl className="org-dog-detail__facts">
