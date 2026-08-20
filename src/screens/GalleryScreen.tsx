@@ -196,8 +196,24 @@ export function GalleryScreen({ onSelectDog, onBack }: GalleryScreenProps) {
           }
         });
 
-        // 「公開停止」ではない犬のメディアのみに絞り込む
-        const filteredMedia = mediaResult.data.filter((item) => validDogIds.has(item.dogId));
+        // 「公開停止」ではない犬のメディアを抽出し、同一犬(dogId)ごとに最新1件(投稿日時が最も新しいもの)のみ選出する
+        const validMedia = mediaResult.data.filter((item) => validDogIds.has(item.dogId));
+        const latestMediaMap = new Map<string, (typeof validMedia)[0]>();
+
+        for (const item of validMedia) {
+          const existing = latestMediaMap.get(item.dogId);
+          if (!existing) {
+            latestMediaMap.set(item.dogId, item);
+          } else {
+            const existingTime = new Date(existing.createdAt || existing.capturedAt || 0).getTime();
+            const itemTime = new Date(item.createdAt || item.capturedAt || 0).getTime();
+            if (itemTime > existingTime) {
+              latestMediaMap.set(item.dogId, item);
+            }
+          }
+        }
+
+        const filteredMedia = Array.from(latestMediaMap.values());
 
         // S3署名付きURLの解決
         const items = await Promise.all(
