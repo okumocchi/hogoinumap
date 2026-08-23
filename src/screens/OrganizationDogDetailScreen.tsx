@@ -19,6 +19,7 @@ import {
 import { uploadMediaFile } from '../utils/uploadDogMedia';
 import { formatApiError } from '../utils/apiErrors';
 import { EditIcon } from '../components/EditIcon';
+import { SecondaryHeader } from '../components/SecondaryHeader';
 import './OrganizationDogDetailScreen.css';
 
 interface OrganizationDogDetailScreenProps {
@@ -494,11 +495,7 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
 
   return (
     <div className="org-dog-detail">
-      <header className="org-dog-detail__topbar">
-        <button type="button" className="org-dog-detail__back" onClick={onBack}>
-          &lt;
-        </button>
-      </header>
+      <SecondaryHeader title="保護犬詳細" onBack={onBack} />
 
       <div className="org-dog-detail__body">
         <section className="org-dog-detail__section">

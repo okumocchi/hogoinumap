@@ -145,6 +145,8 @@ export function OrganizationDashboardScreen({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [pendingMatchCountsByDog, setPendingMatchCountsByDog] = useState<Record<string, number>>({});
+
   const [showFostered, setShowFostered] = useState(false);
   const [showAllStatus, setShowAllStatus] = useState(false);
 
@@ -258,13 +260,33 @@ export function OrganizationDashboardScreen({
     return mapped.sort((a, b) => b.protectedDate.localeCompare(a.protectedDate));
   }
 
+  async function fetchPendingMatches(): Promise<Record<string, number>> {
+    try {
+      const matchResult = await dataClient.models.Match.list({ authMode: 'userPool' });
+      const counts: Record<string, number> = {};
+      matchResult.data.forEach((match) => {
+        if ((match.status === 'REQUESTED' || match.status === 'NEGOTIATING') && match.dogId) {
+          counts[match.dogId] = (counts[match.dogId] || 0) + 1;
+        }
+      });
+      return counts;
+    } catch (err) {
+      console.error('Failed to fetch pending matches for org dashboard:', err);
+      return {};
+    }
+  }
+
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
-      const fetched = await fetchDogs();
+      const [fetchedDogs, matchCounts] = await Promise.all([
+        fetchDogs(),
+        fetchPendingMatches(),
+      ]);
       if (!cancelled) {
-        setDogs(fetched);
+        setDogs(fetchedDogs);
+        setPendingMatchCountsByDog(matchCounts);
         setLoading(false);
       }
     }
@@ -1230,6 +1252,12 @@ export function OrganizationDashboardScreen({
                                 🐕
                               </span>
                             )}
+                            {((pendingMatchCountsByDog[dog.id] ?? 0) > 0 ||
+                              (dog.status === 'PROTECTED' && dog.custodianOwnerSub)) && (
+                              <span className="org-dashboard__dog-thumb-badge" title="未対応の預かり申し出あり">
+                                {pendingMatchCountsByDog[dog.id] || 1}
+                              </span>
+                            )}
                           </div>
                           <div className="org-dashboard__dog-info">
                             <div className="org-dashboard__dog-heading">
@@ -1248,9 +1276,13 @@ export function OrganizationDashboardScreen({
                                     預かり募集中
                                   </span>
                                 )}
-                                {dog.status === 'PROTECTED' && dog.custodianOwnerSub && (
+                                {((pendingMatchCountsByDog[dog.id] ?? 0) > 0 ||
+                                  (dog.status === 'PROTECTED' && dog.custodianOwnerSub)) && (
                                   <span className="org-dashboard__dog-badge org-dashboard__dog-badge--request">
                                     預かり申し出あり
+                                    {(pendingMatchCountsByDog[dog.id] ?? 0) > 1
+                                      ? ` (${pendingMatchCountsByDog[dog.id]}件)`
+                                      : ''}
                                   </span>
                                 )}
                               </div>
