@@ -231,7 +231,7 @@ const schema = a.schema({
       allow.owner(),
       allow.ownersDefinedIn('owners'),
       allow.guest().to(['read']),
-      allow.authenticated().to(['read']),
+      allow.authenticated().to(['read', 'create', 'update', 'delete']),
     ])
     .secondaryIndexes((index) => [
       index('dogId').sortKeys(['startDate']).queryField('listCustodyRecordsByDog'),

@@ -23,6 +23,7 @@ import {
 import { uploadMediaFile } from '../utils/uploadDogMedia';
 import { formatApiError } from '../utils/apiErrors';
 import { EditIcon } from '../components/EditIcon';
+import { ScrollableCaption } from '../components/ScrollableCaption';
 import './DogDetailScreen.css';
 
 interface DogDetailScreenProps {
@@ -1115,9 +1116,11 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
                     )}
                   </div>
                   {item.caption && (
-                    <div className="media-card__caption-container">
-                      <p className="media-card__caption">{item.caption}</p>
-                    </div>
+                    <ScrollableCaption
+                      caption={item.caption}
+                      containerClassName="media-card__caption-container"
+                      textClassName="media-card__caption"
+                    />
                   )}
                   <div className="media-card__actions-container">
                     {dogWishlistUrl && (

@@ -332,16 +332,6 @@
   color: #fff;
   white-space: nowrap;
   display: inline-block;
-  animation: caption-scroll 8s linear infinite;
-}
-
-@keyframes caption-scroll {
-  0% {
-    transform: translateX(100%);
-  }
-  100% {
-    transform: translateX(-100%);
-  }
 }
 
 .org-dog-detail__lightbox {

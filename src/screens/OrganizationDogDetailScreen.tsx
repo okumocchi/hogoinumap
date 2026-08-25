@@ -20,6 +20,7 @@ import { uploadMediaFile } from '../utils/uploadDogMedia';
 import { formatApiError } from '../utils/apiErrors';
 import { EditIcon } from '../components/EditIcon';
 import { SecondaryHeader } from '../components/SecondaryHeader';
+import { ScrollableCaption } from '../components/ScrollableCaption';
 import './OrganizationDogDetailScreen.css';
 
 interface OrganizationDogDetailScreenProps {
@@ -856,9 +857,11 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
                     )}
                   </div>
                   {item.caption && (
-                    <div className="org-dog-detail__media-caption-container">
-                      <span className="org-dog-detail__media-caption">{item.caption}</span>
-                    </div>
+                    <ScrollableCaption
+                      caption={item.caption}
+                      containerClassName="org-dog-detail__media-caption-container"
+                      textClassName="org-dog-detail__media-caption"
+                    />
                   )}
                 </article>
               ))}

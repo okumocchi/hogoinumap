@@ -92,7 +92,7 @@ export const dogSizeLabel: Record<DogSize, string> = {
 export const dogStatusLabel: Record<DogStatus, string> = {
   PROTECTED: '保護中',
   FOSTERED: '預かり中',
-  ADOPTED: '譲渡済み',
+  ADOPTED: '譲渡完了',
   RETURNED: '返還済み',
   IN_TRANSIT: '搬送中',
   SUSPENDED: '公開停止中',

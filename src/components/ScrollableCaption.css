@@ -1,0 +1,25 @@
+.scrollable-caption-container {
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  position: relative;
+  width: 100%;
+}
+
+.scrollable-caption-text {
+  white-space: nowrap;
+  display: inline-block;
+  will-change: transform;
+  animation-name: scroll-caption-constant-speed;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes scroll-caption-constant-speed {
+  0% {
+    transform: translateX(var(--container-width, 300px));
+  }
+  100% {
+    transform: translateX(calc(0px - var(--text-width, 150px)));
+  }
+}

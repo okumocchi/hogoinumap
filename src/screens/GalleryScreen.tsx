@@ -8,6 +8,7 @@ import { useRegisteredVolunteers } from '../hooks/useRegisteredVolunteers';
 import { dataClient } from '../lib/dataClient';
 import { calculateAgeAtLabel, calculateElapsedLabel } from '../utils/dog';
 import { getOrCreateAnonToken } from '../utils/likeHelper';
+import { ScrollableCaption } from '../components/ScrollableCaption';
 import './GalleryScreen.css';
 
 interface GalleryScreenProps {
@@ -362,6 +363,14 @@ export function GalleryScreen({ onSelectDog, onBack }: GalleryScreenProps) {
                   <span className="media-card__age-badge">
                     {calculateAgeAtLabel(dog.birthDate, item.capturedAt || item.createdAt)}（{calculateElapsedLabel(item.capturedAt || item.createdAt)}）
                   </span>
+                  {dog.status === 'ADOPTED' && (
+                    <img
+                      src="/assets/rose.svg"
+                      className="media-card__adopted-badge"
+                      alt="譲渡完了"
+                      title="譲渡完了"
+                    />
+                  )}
                   <button
                     type="button"
                     className="media-card__detail-button"
@@ -403,9 +412,11 @@ export function GalleryScreen({ onSelectDog, onBack }: GalleryScreenProps) {
                     )}
                   </div>
                   {item.caption && (
-                    <div className="media-card__caption-container">
-                      <p className="media-card__caption">{item.caption}</p>
-                    </div>
+                    <ScrollableCaption
+                      caption={item.caption}
+                      containerClassName="media-card__caption-container"
+                      textClassName="media-card__caption"
+                    />
                   )}
                   <div className="media-card__actions-container">
                     {wishlistUrl && (

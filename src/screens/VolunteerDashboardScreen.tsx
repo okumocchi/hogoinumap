@@ -314,6 +314,7 @@ export function VolunteerDashboardScreen({
         startDate: today(),
         status: 'FOSTERED',
         comment: dogStatusComment['FOSTERED'],
+        owners: (result.data as any)?.owners ?? undefined,
       };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await dataClient.models.CustodyRecord.create(custodyInput as any);
