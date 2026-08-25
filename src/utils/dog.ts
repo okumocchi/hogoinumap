@@ -116,6 +116,30 @@ export function effectiveDogStatusLabel(dog: { status: DogStatus; custodianOwner
   return dogStatusLabel[dog.status];
 }
 
+export type DogBadgeTone = 'accent' | 'success' | 'neutral' | 'warning' | 'danger' | 'info';
+
+// 保護犬のステータスに応じたバッジのカラー分類
+// - 保護中、預かり中、搬送中 ・・・ 緑系 ('success')
+// - 譲渡完了 ・・・ 青系 ('info')
+// - 公開停止中 ・・・ グレー ('neutral')
+export function getDogStatusBadgeTone(dogOrStatus: DogStatus | { status: DogStatus; custodianOwnerSub?: string }): DogBadgeTone {
+  const status = typeof dogOrStatus === 'string' ? dogOrStatus : dogOrStatus.status;
+  switch (status) {
+    case 'PROTECTED':
+    case 'FOSTERED':
+    case 'IN_TRANSIT':
+      return 'success';
+    case 'ADOPTED':
+      return 'info';
+    case 'SUSPENDED':
+    case 'RETURNED':
+    case 'TRANSFERRED':
+      return 'neutral';
+    default:
+      return 'success';
+  }
+}
+
 export const custodianTypeLabel: Record<CustodianType, string> = {
   ORGANIZATION: '保護団体',
   VOLUNTEER: '預かりボランティア',

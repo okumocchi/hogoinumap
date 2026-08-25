@@ -16,6 +16,7 @@ import {
   custodianTypeLabel,
   dogStatusComment,
   effectiveDogStatusLabel,
+  getDogStatusBadgeTone,
   genderLabel,
   isDogOpenForFosterOffers,
   isSameOwnerSub,
@@ -924,9 +925,9 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
         <section className="dog-detail__header">
           <h1 className="dog-detail__name">{dog.name}</h1>
           <div className="dog-detail__badges">
-            <Badge tone="neutral">{effectiveDogStatusLabel(dog)}</Badge>
-            {dog.seekingAdopter && <Badge tone="success">里親募集中</Badge>}
-            {isDogOpenForFosterOffers(dog) && <Badge tone="accent">預かり募集中</Badge>}
+            <Badge tone={getDogStatusBadgeTone(dog)}>{effectiveDogStatusLabel(dog)}</Badge>
+            {dog.seekingAdopter && <Badge tone="danger">里親募集中</Badge>}
+            {isDogOpenForFosterOffers(dog) && <Badge tone="danger">預かり募集中</Badge>}
           </div>
           <dl className="dog-detail__facts">
             <div>

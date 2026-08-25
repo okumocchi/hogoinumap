@@ -1,7 +1,7 @@
 import type { MouseEvent, ReactNode } from 'react';
 import './Badge.css';
 
-export type BadgeTone = 'accent' | 'success' | 'neutral' | 'warning';
+export type BadgeTone = 'accent' | 'success' | 'neutral' | 'warning' | 'danger' | 'info';
 
 interface BadgeProps {
   tone?: BadgeTone;

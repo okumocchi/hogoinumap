@@ -8,7 +8,7 @@ import { useRegisteredOrganizations } from '../hooks/useRegisteredOrganizations'
 import { useRegisteredVolunteers } from '../hooks/useRegisteredVolunteers';
 import { dataClient } from '../lib/dataClient';
 import type { Dog } from '../types/models';
-import { calculateAgeLabel, genderLabel, isDogOpenForFosterOffers, isSameOwnerSub } from '../utils/dog';
+import { calculateAgeLabel, effectiveDogStatusLabel, getDogStatusBadgeTone, genderLabel, isDogOpenForFosterOffers, isSameOwnerSub } from '../utils/dog';
 import './DogListScreen.css';
 
 interface DogListScreenProps {
@@ -153,9 +153,9 @@ export function DogListScreen({
                 <div className="dog-list-card__heading">
                   <span className="dog-list-card__name">{dog.name}</span>
                   <span className="dog-list-card__badges">
-                    {/* <Badge tone="neutral">{effectiveDogStatusLabel(dog)}</Badge> */}
-                    {dog.seekingAdopter && <Badge tone="success">里親募集中</Badge>}
-                    {isDogOpenForFosterOffers(dog) && <Badge tone="accent">預かり募集中</Badge>}
+                    <Badge tone={getDogStatusBadgeTone(dog)}>{effectiveDogStatusLabel(dog)}</Badge>
+                    {dog.seekingAdopter && <Badge tone="danger">里親募集中</Badge>}
+                    {isDogOpenForFosterOffers(dog) && <Badge tone="danger">預かり募集中</Badge>}
                   </span>
                 </div>
                 <p className="dog-list-card__meta">

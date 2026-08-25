@@ -5,7 +5,8 @@ import { DogForm, type DogFormValues } from '../components/DogForm';
 import type { MyOrganization } from '../hooks/useMyOrganization';
 import { dataClient } from '../lib/dataClient';
 import type { Dog, DogGender, DogSize, DogStatus } from '../types/models';
-import { calculateAgeLabel, dogStatusComment, effectiveDogStatusLabel, genderLabel, isDogOpenForFosterOffers } from '../utils/dog';
+import { Badge } from '../components/Badge';
+import { calculateAgeLabel, dogStatusComment, effectiveDogStatusLabel, getDogStatusBadgeTone, genderLabel, isDogOpenForFosterOffers } from '../utils/dog';
 import { geocodeAddress } from '../utils/geocode';
 import { PREFECTURES } from '../utils/prefectures';
 import { OrganizationDogDetailScreen } from './OrganizationDogDetailScreen';
@@ -1263,27 +1264,17 @@ export function OrganizationDashboardScreen({
                             <div className="org-dashboard__dog-heading">
                               <span className="org-dashboard__dog-name">{dog.name}</span>
                               <div className="org-dashboard__dog-badges">
-                                <span className="org-dashboard__dog-badge org-dashboard__dog-badge--status">
-                                  {effectiveDogStatusLabel(dog)}
-                                </span>
-                                {dog.seekingAdopter && (
-                                  <span className="org-dashboard__dog-badge org-dashboard__dog-badge--adopter">
-                                    里親募集中
-                                  </span>
-                                )}
-                                {isDogOpenForFosterOffers(dog) && (
-                                  <span className="org-dashboard__dog-badge org-dashboard__dog-badge--foster">
-                                    預かり募集中
-                                  </span>
-                                )}
+                                <Badge tone={getDogStatusBadgeTone(dog)}>{effectiveDogStatusLabel(dog)}</Badge>
+                                {dog.seekingAdopter && <Badge tone="danger">里親募集中</Badge>}
+                                {isDogOpenForFosterOffers(dog) && <Badge tone="danger">預かり募集中</Badge>}
                                 {((pendingMatchCountsByDog[dog.id] ?? 0) > 0 ||
                                   (dog.status === 'PROTECTED' && dog.custodianOwnerSub)) && (
-                                  <span className="org-dashboard__dog-badge org-dashboard__dog-badge--request">
+                                  <Badge tone="danger">
                                     預かり申し出あり
                                     {(pendingMatchCountsByDog[dog.id] ?? 0) > 1
                                       ? ` (${pendingMatchCountsByDog[dog.id]}件)`
                                       : ''}
-                                  </span>
+                                  </Badge>
                                 )}
                               </div>
                             </div>

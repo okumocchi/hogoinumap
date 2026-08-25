@@ -10,28 +10,34 @@
   white-space: nowrap;
 }
 
-.badge--accent {
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 1px solid var(--accent-border);
-}
-
+/* 緑系: 保護中、預かり中、搬送中 */
 .badge--success {
-  color: #6f8a3f;
-  background: rgba(111, 138, 63, 0.12);
-  border: 1px solid rgba(111, 138, 63, 0.35);
+  color: #276738;
+  background: rgba(39, 103, 56, 0.14);
+  border: 1px solid rgba(39, 103, 56, 0.38);
 }
 
+/* 赤系: 里親募集中、預かり募集中 */
+.badge--danger,
+.badge--warning,
+.badge--accent {
+  color: #c62828;
+  background: rgba(198, 40, 40, 0.14);
+  border: 1px solid rgba(198, 40, 40, 0.38);
+}
+
+/* 青系: 譲渡完了 */
+.badge--info {
+  color: #1565c0;
+  background: rgba(21, 101, 192, 0.14);
+  border: 1px solid rgba(21, 101, 192, 0.38);
+}
+
+/* グレー系: 公開停止中 */
 .badge--neutral {
-  color: var(--text);
-  background: var(--social-bg);
-  border: 1px solid var(--border);
-}
-
-.badge--warning {
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 1px solid var(--accent-border);
+  color: #546e7a;
+  background: rgba(84, 110, 122, 0.14);
+  border: 1px solid rgba(84, 110, 122, 0.35);
 }
 
 .badge--clickable {

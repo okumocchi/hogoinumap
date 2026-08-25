@@ -12,6 +12,8 @@ import { SecondaryHeader } from '../components/SecondaryHeader';
 import {
   calculateAgeBracket,
   calculateAgeLabel,
+  effectiveDogStatusLabel,
+  getDogStatusBadgeTone,
   genderLabel,
   isDogOpenForFosterOffers,
 } from '../utils/dog';
@@ -524,10 +526,10 @@ export function OrganizationDetailScreen({
                 <div className="dog-summary-card__heading">
                   <span className="dog-summary-card__name">{dog.name}</span>
                   <span className="dog-summary-card__badges">
-                    {/* <Badge tone="neutral">{effectiveDogStatusLabel(dog)}</Badge> */}
-                    {dog.seekingAdopter && <Badge tone="success">里親募集中</Badge>}
+                    <Badge tone={getDogStatusBadgeTone(dog)}>{effectiveDogStatusLabel(dog)}</Badge>
+                    {dog.seekingAdopter && <Badge tone="danger">里親募集中</Badge>}
                     {isDogOpenForFosterOffers(dog) && (
-                      <Badge tone="accent">預かり募集中</Badge>
+                      <Badge tone="danger">預かり募集中</Badge>
                     )}
                   </span>
                 </div>
