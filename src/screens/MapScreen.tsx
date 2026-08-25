@@ -109,6 +109,7 @@ export function MapScreen({
           city: vol.city,
           latitude: vol.latitude,
           longitude: vol.longitude,
+          availableSlotCount: vol.availableSlotCount,
         })),
     [allVolunteers, prefectureFilter, showAvailableVolunteers],
   );

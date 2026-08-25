@@ -43,6 +43,14 @@
   font-size: 14px;
 }
 
+.map-pin__count {
+  rotate: 45deg;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+
 .map-pin--organization-seeking {
   background: var(--pin-org-seeking);
 }

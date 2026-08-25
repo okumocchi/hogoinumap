@@ -30,27 +30,33 @@ export function useRegisteredVolunteers(trigger = 0): Volunteer[] {
           .filter(Boolean),
       );
 
-      // 空きのあるスロットを1件以上持っているボランティアのID
-      const volunteerIdsWithAvailableSlot = new Set(
-        slotResult.data
-          .filter((slot) => !busySlotIds.has(slot.id))
-          .map((slot) => slot.volunteerId),
-      );
+      // ボランティアごとの空きスロット数(受け入れ可能数)を集計する
+      const availableSlotCountByVolunteer = new Map<string, number>();
+      slotResult.data
+        .filter((slot) => !busySlotIds.has(slot.id))
+        .forEach((slot) => {
+          const current = availableSlotCountByVolunteer.get(slot.volunteerId) ?? 0;
+          availableSlotCountByVolunteer.set(slot.volunteerId, current + 1);
+        });
 
       const withCoordinates: Volunteer[] = volunteerResult.data
         .filter((vol) => typeof vol.latitude === 'number' && typeof vol.longitude === 'number')
-        .map((vol) => ({
-          id: vol.id,
-          handleName: vol.handleName,
-          prefecture: vol.prefecture,
-          city: vol.city,
-          latitude: vol.latitude as number,
-          longitude: vol.longitude as number,
-          wishlistUrl: vol.wishlistUrl ?? undefined,
-          profileIntroduction: vol.profileIntroduction ?? undefined,
-          hasAvailableSlot: volunteerIdsWithAvailableSlot.has(vol.id),
-          ownerSub: vol.ownerSub ?? undefined,
-        }));
+        .map((vol) => {
+          const slotCount = availableSlotCountByVolunteer.get(vol.id) ?? 0;
+          return {
+            id: vol.id,
+            handleName: vol.handleName,
+            prefecture: vol.prefecture,
+            city: vol.city,
+            latitude: vol.latitude as number,
+            longitude: vol.longitude as number,
+            wishlistUrl: vol.wishlistUrl ?? undefined,
+            profileIntroduction: vol.profileIntroduction ?? undefined,
+            hasAvailableSlot: slotCount > 0,
+            availableSlotCount: slotCount,
+            ownerSub: vol.ownerSub ?? undefined,
+          };
+        });
 
       setVolunteers(withCoordinates);
     }

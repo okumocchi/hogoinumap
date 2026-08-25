@@ -31,6 +31,8 @@ export interface Volunteer {
   profileIntroduction?: string;
   // 受入可能なスロットが1件でもあるかどうか(地図のピン色分けに使用)
   hasAvailableSlot: boolean;
+  // 受入可能な枠(スロット)の合計件数
+  availableSlotCount: number;
   ownerSub?: string;
 }
 
@@ -93,4 +95,5 @@ export interface MapPinData {
   city: string;
   latitude: number;
   longitude: number;
+  availableSlotCount?: number;
 }

@@ -168,6 +168,7 @@ interface PinProperties {
   id: string;
   pinKind: MapPinKind;
   label: string;
+  availableSlotCount?: number;
 }
 
 function toFeatureCollection(pins: MapPinData[]): FeatureCollection<Point, PinProperties> {
@@ -175,7 +176,12 @@ function toFeatureCollection(pins: MapPinData[]): FeatureCollection<Point, PinPr
     type: 'FeatureCollection',
     features: pins.map((pin) => ({
       type: 'Feature',
-      properties: { id: pin.id, pinKind: pin.kind, label: pin.label },
+      properties: {
+        id: pin.id,
+        pinKind: pin.kind,
+        label: pin.label,
+        availableSlotCount: pin.availableSlotCount ?? 0,
+      },
       geometry: { type: 'Point', coordinates: [pin.longitude, pin.latitude] },
     })),
   };
@@ -203,7 +209,13 @@ function createPinMarker(
   pinEl.setAttribute('tabindex', '0');
   pinEl.setAttribute('aria-label', props.label);
   pinEl.title = props.label;
-  pinEl.innerHTML = `<span class="map-pin__icon" aria-hidden="true">${PIN_ICON[props.pinKind]}</span>`;
+
+  const count = props.availableSlotCount ?? 0;
+  if (entityKind === 'volunteer' && count > 0) {
+    pinEl.innerHTML = `<span class="map-pin__count">${count}</span>`;
+  } else {
+    pinEl.innerHTML = `<span class="map-pin__icon" aria-hidden="true">${PIN_ICON[props.pinKind]}</span>`;
+  }
 
   const select = () => onSelect({ kind: entityKind, id: props.id });
   pinEl.addEventListener('click', select);
@@ -223,18 +235,23 @@ function createClusterMarker(
   sourceId: string,
   entityKind: EntityKind,
   clusterId: number,
-  count: number,
+  displayValue: number,
   lngLat: [number, number],
 ): mapboxgl.Marker {
-  const size = clusterSize(count);
+  const size = clusterSize(displayValue);
   const el = document.createElement('div');
   el.className = `map-cluster map-cluster--${entityKind}`;
   el.style.width = `${size}px`;
   el.style.height = `${size}px`;
-  el.textContent = String(count);
+  el.textContent = String(displayValue);
   el.setAttribute('role', 'button');
   el.setAttribute('tabindex', '0');
-  el.setAttribute('aria-label', `${count}件をまとめて表示中。クリックで拡大表示`);
+  el.setAttribute(
+    'aria-label',
+    entityKind === 'volunteer'
+      ? `受け入れ可能数合計${displayValue}頭分をまとめて表示中。クリックで拡大表示`
+      : `${displayValue}件をまとめて表示中。クリックで拡大表示`,
+  );
 
   const expand = () => {
     const source = map.getSource(sourceId);
@@ -350,8 +367,13 @@ export function MapboxMap({ orgPins, volunteerPins, onSelectPin, homeLocation, o
             const dedupeKey = `cluster-${clusterId}`;
             if (seen.has(dedupeKey)) continue;
             seen.add(dedupeKey);
+            const pointCount = props.point_count ?? 0;
+            const displayValue = kind === 'volunteer'
+              ? (props.totalAvailableSlots ?? pointCount)
+              : pointCount;
+
             markersRef.current.push(
-              createClusterMarker(map, id, kind, clusterId, props.point_count ?? 0, [lng, lat]),
+              createClusterMarker(map, id, kind, clusterId, displayValue, [lng, lat]),
             );
           } else {
             const pinId = props.id as string;
@@ -382,6 +404,9 @@ export function MapboxMap({ orgPins, volunteerPins, onSelectPin, homeLocation, o
         cluster: true,
         clusterRadius: CLUSTER_RADIUS,
         clusterMaxZoom: CLUSTER_MAX_ZOOM,
+        clusterProperties: {
+          totalAvailableSlots: ['+', ['get', 'availableSlotCount']],
+        },
       });
 
       // querySourceFeaturesがタイルを参照できるよう、実際に描画はしない透明レイヤーを両ソースに紐付けておく
