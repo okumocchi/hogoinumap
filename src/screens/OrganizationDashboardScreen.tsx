@@ -1,5 +1,5 @@
 import { fetchAuthSession, getCurrentUser } from 'aws-amplify/auth';
-import { getUrl } from 'aws-amplify/storage';
+import { getUrl, remove } from 'aws-amplify/storage';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { DogForm, type DogFormValues } from '../components/DogForm';
 import type { MyOrganization } from '../hooks/useMyOrganization';
@@ -721,6 +721,63 @@ export function OrganizationDashboardScreen({
     }
   }
 
+  const [confirmingDeleteDog, setConfirmingDeleteDog] = useState(false);
+  const [deletingDog, setDeletingDog] = useState(false);
+  const [deleteDogError, setDeleteDogError] = useState<string | null>(null);
+
+  async function handleDeleteDog(dogId: string) {
+    setDeletingDog(true);
+    setDeleteDogError(null);
+    try {
+      // 1. 関連する DogMedia のクリーンアップ (S3およびDBレコード)
+      try {
+        const mediaRes = await dataClient.models.DogMedia.listByDogSortedByDate(
+          { dogId },
+          { authMode: 'userPool' }
+        );
+        for (const m of mediaRes.data) {
+          if (m.s3Key) await remove({ path: m.s3Key }).catch(() => undefined);
+          if (m.thumbnailS3Key) await remove({ path: m.thumbnailS3Key }).catch(() => undefined);
+          await dataClient.models.DogMedia.delete({ id: m.id }, { authMode: 'userPool' }).catch(() => undefined);
+        }
+      } catch (mErr) {
+        console.error('Failed to cleanup DogMedia:', mErr);
+      }
+
+      // 2. 関連する CustodyRecord のクリーンアップ
+      try {
+        const custodyRes = await dataClient.models.CustodyRecord.listCustodyRecordsByDog(
+          { dogId },
+          { authMode: 'userPool' }
+        );
+        for (const c of custodyRes.data) {
+          await dataClient.models.CustodyRecord.delete({ id: c.id }, { authMode: 'userPool' }).catch(() => undefined);
+        }
+      } catch (cErr) {
+        console.error('Failed to cleanup CustodyRecord:', cErr);
+      }
+
+      // 3. Dog レコード自体の削除
+      const result = await dataClient.models.Dog.delete(
+        { id: dogId },
+        { authMode: 'userPool' }
+      );
+      if (result.errors?.length) {
+        throw new Error(formatApiError(result.errors));
+      }
+
+      // 4. 一覧の更新と一覧表示へ戻る
+      setConfirmingDeleteDog(false);
+      setDogs(await fetchDogs());
+      setMode({ screen: 'list' });
+    } catch (err) {
+      console.error('Failed to delete dog:', err);
+      setDeleteDogError(formatApiError(err, '保護犬の削除に失敗しました。時間をおいて再度お試しください。'));
+    } finally {
+      setDeletingDog(false);
+    }
+  }
+
   function updateOrgField<K extends keyof OrgInfoFormState>(key: K, value: OrgInfoFormState[K]) {
     setOrgForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -1304,14 +1361,28 @@ export function OrganizationDashboardScreen({
         )}
 
         {mode.screen === 'edit-dog' && selectedDog && (
-          <DogForm
-            initialValues={dogToFormValues(selectedDog)}
-            submitLabel="更新する"
-            submitting={submitting}
-            submitError={error}
-            onSubmit={(values) => handleUpdate(selectedDog.id, values)}
-            onCancel={() => setMode({ screen: 'dog-detail', dogId: selectedDog.id })}
-          />
+          <div className="org-dashboard__edit-dog-container">
+            <DogForm
+              initialValues={dogToFormValues(selectedDog)}
+              submitLabel="更新する"
+              submitting={submitting}
+              submitError={error}
+              onSubmit={(values) => handleUpdate(selectedDog.id, values)}
+              onCancel={() => setMode({ screen: 'dog-detail', dogId: selectedDog.id })}
+            />
+            <div className="org-dashboard__delete-section">
+              <button
+                type="button"
+                className="org-dashboard__delete-dog-btn"
+                onClick={() => {
+                  setDeleteDogError(null);
+                  setConfirmingDeleteDog(true);
+                }}
+              >
+                この保護犬情報を削除する
+              </button>
+            </div>
+          </div>
         )}
 
         {moderatorConfirm && (
@@ -1353,6 +1424,49 @@ export function OrganizationDashboardScreen({
                   onClick={handleConfirmToggleModerator}
                 >
                   {moderatorConfirm.isGranting ? '付与する' : '解除する'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {confirmingDeleteDog && selectedDog && (
+          <div
+            className="org-dashboard__modal-overlay"
+            onClick={() => !deletingDog && setConfirmingDeleteDog(false)}
+          >
+            <div
+              className="org-dashboard__modal-content"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3>保護犬情報を削除</h3>
+              <p className="org-dashboard__modal-message" style={{ textAlign: 'left', marginTop: '12px' }}>
+                保護犬<strong>「{selectedDog.name}」</strong>の登録情報を削除しますか？
+                <span style={{ fontSize: '13px', color: '#c62828', marginTop: '8px', display: 'block' }}>
+                  ※この操作は取り消せません。登録されている写真・動画、および預かり履歴データも一緒に削除されます。
+                </span>
+              </p>
+              {deleteDogError && (
+                <p className="org-dashboard__error" style={{ marginTop: '12px' }}>
+                  {deleteDogError}
+                </p>
+              )}
+              <div className="org-dashboard__modal-actions" style={{ marginTop: '20px' }}>
+                <button
+                  type="button"
+                  className="org-dashboard__modal-cancel"
+                  disabled={deletingDog}
+                  onClick={() => setConfirmingDeleteDog(false)}
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="button"
+                  className="org-dashboard__delete-dog-confirm-btn"
+                  disabled={deletingDog}
+                  onClick={() => handleDeleteDog(selectedDog.id)}
+                >
+                  {deletingDog ? '削除中…' : 'はい、削除します'}
                 </button>
               </div>
             </div>
