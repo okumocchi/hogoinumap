@@ -313,3 +313,60 @@
     display: none;
   }
 }
+
+/* Pull to Refresh インジケーター用スタイル */
+.app-header-wrapper {
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.app-header__ptr-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--header-border);
+  color: var(--header-text);
+  overflow: hidden;
+  z-index: 10;
+  transition: opacity 0.15s ease;
+}
+
+.app-header__ptr-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--header-text-sub);
+}
+
+.app-header__ptr-arrow {
+  width: 18px;
+  height: 18px;
+  transition: transform 0.1s linear;
+}
+
+.app-header__ptr-arrow.is-up {
+  transform: rotate(0deg);
+}
+
+.app-header__ptr-spinner {
+  width: 18px;
+  height: 18px;
+  animation: app-header-spin 0.8s linear infinite;
+}
+
+@keyframes app-header-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
