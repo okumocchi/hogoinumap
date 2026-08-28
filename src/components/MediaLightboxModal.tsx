@@ -17,6 +17,7 @@ export const MediaLightboxModal: React.FC<MediaLightboxModalProps> = ({
   const [translateY, setTranslateY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [closeDirection, setCloseDirection] = useState<number>(1); // 1: 下方向, -1: 上方向
   const startYRef = useRef<number>(0);
   const currentYRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
@@ -52,13 +53,8 @@ export const MediaLightboxModal: React.FC<MediaLightboxModalProps> = ({
     if (!isDragging) return;
     currentYRef.current = clientY;
     const diffY = clientY - startYRef.current;
-
-    // 下方向のドラッグ（diffY > 0）を主に許可。上方向（diffY < 0）は軽度の抵抗をつける
-    if (diffY > 0) {
-      setTranslateY(diffY);
-    } else {
-      setTranslateY(diffY * 0.2);
-    }
+    // 上下どちら方向へも自由移動
+    setTranslateY(diffY);
   };
 
   const handleEnd = () => {
@@ -68,16 +64,20 @@ export const MediaLightboxModal: React.FC<MediaLightboxModalProps> = ({
     const diffY = currentYRef.current - startYRef.current;
     const duration = Date.now() - startTimeRef.current;
     const velocityY = diffY / (duration || 1); // px/ms
+    const absDiffY = Math.abs(diffY);
+    const absVelocityY = Math.abs(velocityY);
 
-    const DISMISS_THRESHOLD = 80; // 80px以上下にドラッグした場合閉じる
-    const VELOCITY_THRESHOLD = 0.4; // 高速なフリック操作
+    const DISMISS_THRESHOLD = 70; // 70px以上のドラッグで閉じる
+    const VELOCITY_THRESHOLD = 0.3; // 高速なフリック操作
 
-    if ((diffY > DISMISS_THRESHOLD || (diffY > 30 && velocityY > VELOCITY_THRESHOLD)) && !isClosing) {
+    if ((absDiffY > DISMISS_THRESHOLD || (absDiffY > 15 && absVelocityY > VELOCITY_THRESHOLD)) && !isClosing) {
       setIsClosing(true);
+      const dir = (diffY !== 0 ? diffY : velocityY) < 0 ? -1 : 1;
+      setCloseDirection(dir);
       // スライドアウトアニメーション後に onClose を呼び出し
       setTimeout(() => {
         onClose();
-      }, 200);
+      }, 180);
     } else {
       // 元の位置に戻す
       setTranslateY(0);
@@ -103,7 +103,6 @@ export const MediaLightboxModal: React.FC<MediaLightboxModalProps> = ({
 
   // マウス/ポインターイベントハンドラ
   const handleMouseDown = (e: React.MouseEvent) => {
-    // 左クリックのみ
     if (e.button === 0) {
       handleStart(e.clientY);
     }
@@ -117,21 +116,21 @@ export const MediaLightboxModal: React.FC<MediaLightboxModalProps> = ({
     handleEnd();
   };
 
-  // ドラッグ時の背景不透明度計算（最大0.85から減算）
-  const dragRatio = Math.max(0, Math.min(1, translateY / 300));
-  const backdropOpacity = isClosing ? 0 : Math.max(0.1, 0.85 * (1 - dragRatio));
+  // ドラッグ時の背景不透明度計算（最大0.9から減算）
+  const dragRatio = Math.max(0, Math.min(1, Math.abs(translateY) / 300));
+  const backdropOpacity = isClosing ? 0 : Math.max(0.1, 0.9 * (1 - dragRatio));
 
   // モーダルコンテンツのスタイル
   const contentStyle: React.CSSProperties = {
     transform: isClosing
-      ? `translateY(${Math.max(translateY, 300) + 400}px)`
+      ? `translateY(${closeDirection * (Math.max(Math.abs(translateY), 200) + window.innerHeight)}px)`
       : `translateY(${translateY}px)`,
-    transition: isDragging ? 'none' : 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)',
+    transition: isDragging ? 'none' : 'transform 0.2s cubic-bezier(0.25, 1, 0.5, 1)',
   };
 
   const backdropStyle: React.CSSProperties = {
     backgroundColor: `rgba(0, 0, 0, ${backdropOpacity})`,
-    transition: isDragging ? 'none' : 'background-color 0.25s ease',
+    transition: isDragging ? 'none' : 'background-color 0.2s ease',
   };
 
   return (
@@ -144,10 +143,6 @@ export const MediaLightboxModal: React.FC<MediaLightboxModalProps> = ({
       onMouseLeave={handleMouseUp}
     >
       <div className="media-lightbox-header" onClick={(e) => e.stopPropagation()}>
-        <div className="media-lightbox-drag-indicator">
-          <span className="media-lightbox-drag-handle" />
-          <span className="media-lightbox-drag-hint">下にスワイプで閉じる</span>
-        </div>
         <button
           type="button"
           className="media-lightbox-close-btn"
@@ -188,3 +183,4 @@ export const MediaLightboxModal: React.FC<MediaLightboxModalProps> = ({
     </div>
   );
 };
+
