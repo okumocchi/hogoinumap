@@ -9,6 +9,7 @@ import { dataClient } from '../lib/dataClient';
 import { calculateAgeAtLabel, calculateElapsedLabel } from '../utils/dog';
 import { getOrCreateAnonToken } from '../utils/likeHelper';
 import { ScrollableCaption } from '../components/ScrollableCaption';
+import { MediaLightboxModal } from '../components/MediaLightboxModal';
 import './GalleryScreen.css';
 
 interface GalleryScreenProps {
@@ -40,7 +41,7 @@ export function GalleryScreen({ onSelectDog, onBack }: GalleryScreenProps) {
   const [displayLimit, setDisplayLimit] = useState(30);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [myLikeIds, setMyLikeIds] = useState<Record<string, string>>({}); // dogMediaId -> MediaLike.id
-  const [lightboxMedia, setLightboxMedia] = useState<{ mediaType: 'PHOTO' | 'VIDEO'; url: string } | null>(null);
+  const [lightboxMedia, setLightboxMedia] = useState<{ mediaType: 'PHOTO' | 'VIDEO'; url: string; caption?: string } | null>(null);
   const [showNotice, setShowNotice] = useState(true);
   const [noticeHiding, setNoticeHiding] = useState(false);
 
@@ -387,21 +388,21 @@ export function GalleryScreen({ onSelectDog, onBack }: GalleryScreenProps) {
                         poster={item.thumbnailUrl}
                         muted
                         preload="metadata"
-                        onClick={() => setLightboxMedia({ mediaType: 'VIDEO', url: item.url })}
+                        onClick={() => setLightboxMedia({ mediaType: 'VIDEO', url: item.url, caption: item.caption })}
                       />
                     ) : item.thumbnailUrl ? (
                       <img
                         className="media-card__thumb media-card__thumb--clickable"
                         src={item.thumbnailUrl}
                         alt={item.caption ?? dog.name}
-                        onClick={() => setLightboxMedia({ mediaType: 'PHOTO', url: item.url ?? item.thumbnailUrl })}
+                        onClick={() => setLightboxMedia({ mediaType: 'PHOTO', url: item.url ?? item.thumbnailUrl, caption: item.caption })}
                       />
                     ) : item.url ? (
                       <img
                         className="media-card__thumb media-card__thumb--clickable"
                         src={item.url}
                         alt={item.caption ?? dog.name}
-                        onClick={() => setLightboxMedia({ mediaType: 'PHOTO', url: item.url })}
+                        onClick={() => setLightboxMedia({ mediaType: 'PHOTO', url: item.url, caption: item.caption })}
                       />
                     ) : (
                       <div className="media-card__thumb">
@@ -451,32 +452,12 @@ export function GalleryScreen({ onSelectDog, onBack }: GalleryScreenProps) {
       </div>
 
       {lightboxMedia && (
-        <div
-          className="dog-detail__lightbox"
-          role="button"
-          tabIndex={0}
-          onClick={() => setLightboxMedia(null)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') setLightboxMedia(null);
-          }}
-        >
-          {lightboxMedia.mediaType === 'VIDEO' ? (
-            <video
-              className="dog-detail__lightbox-video"
-              src={lightboxMedia.url}
-              controls
-              autoPlay
-              onClick={(e) => e.stopPropagation()}
-            />
-          ) : (
-            <img
-              className="dog-detail__lightbox-image"
-              src={lightboxMedia.url}
-              alt=""
-              onClick={(e) => e.stopPropagation()}
-            />
-          )}
-        </div>
+        <MediaLightboxModal
+          mediaType={lightboxMedia.mediaType}
+          url={lightboxMedia.url}
+          caption={lightboxMedia.caption}
+          onClose={() => setLightboxMedia(null)}
+        />
       )}
     </div>
   );

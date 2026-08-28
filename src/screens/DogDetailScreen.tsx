@@ -25,6 +25,7 @@ import { uploadMediaFile } from '../utils/uploadDogMedia';
 import { formatApiError } from '../utils/apiErrors';
 import { EditIcon } from '../components/EditIcon';
 import { ScrollableCaption } from '../components/ScrollableCaption';
+import { MediaLightboxModal } from '../components/MediaLightboxModal';
 import './DogDetailScreen.css';
 
 interface DogDetailScreenProps {
@@ -792,7 +793,7 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
 
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [myLikeIds, setMyLikeIds] = useState<Record<string, string>>({}); // dogMediaId -> MediaLike.id
-  const [lightboxMedia, setLightboxMedia] = useState<{ mediaType: MediaType; url: string } | null>(null);
+  const [lightboxMedia, setLightboxMedia] = useState<{ mediaType: MediaType; url: string; caption?: string } | null>(null);
 
   useEffect(() => {
     if (lightboxMedia) {
@@ -1090,7 +1091,7 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
                         poster={item.thumbnailUrl}
                         muted
                         preload="metadata"
-                        onClick={() => setLightboxMedia({ mediaType: 'VIDEO', url: item.url })}
+                        onClick={() => setLightboxMedia({ mediaType: 'VIDEO', url: item.url, caption: item.caption })}
                       />
                     ) : item.thumbnailUrl ? (
                       // 一覧表示には長辺300pxのサムネイルを使う(本体画像は最大1200pxで一覧用途には過大)。
@@ -1099,14 +1100,14 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
                         className="media-card__thumb media-card__thumb--clickable"
                         src={item.thumbnailUrl}
                         alt={item.caption ?? dog.name}
-                        onClick={() => setLightboxMedia({ mediaType: 'PHOTO', url: item.url ?? item.thumbnailUrl })}
+                        onClick={() => setLightboxMedia({ mediaType: 'PHOTO', url: item.url ?? item.thumbnailUrl, caption: item.caption })}
                       />
                     ) : item.url ? (
                       <img
                         className="media-card__thumb media-card__thumb--clickable"
                         src={item.url}
                         alt={item.caption ?? dog.name}
-                        onClick={() => setLightboxMedia({ mediaType: 'PHOTO', url: item.url })}
+                        onClick={() => setLightboxMedia({ mediaType: 'PHOTO', url: item.url, caption: item.caption })}
                       />
                     ) : (
                       <div className="media-card__thumb" style={{ background: 'item.placeholderColor' }}>
@@ -1289,19 +1290,12 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
       )}
 
       {lightboxMedia && (
-        <div className="dog-detail__lightbox" onClick={() => setLightboxMedia(null)}>
-          {lightboxMedia.mediaType === 'VIDEO' ? (
-            <video
-              className="dog-detail__lightbox-video"
-              src={lightboxMedia.url}
-              controls
-              autoPlay
-              onClick={(e) => e.stopPropagation()}
-            />
-          ) : (
-            <img className="dog-detail__lightbox-image" src={lightboxMedia.url} alt="" />
-          )}
-        </div>
+        <MediaLightboxModal
+          mediaType={lightboxMedia.mediaType}
+          url={lightboxMedia.url}
+          caption={lightboxMedia.caption}
+          onClose={() => setLightboxMedia(null)}
+        />
       )}
 
       {(fosterFlow.type === 'confirm' || fosterFlow.type === 'processing') && (

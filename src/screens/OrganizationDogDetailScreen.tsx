@@ -22,6 +22,7 @@ import { formatApiError } from '../utils/apiErrors';
 import { EditIcon } from '../components/EditIcon';
 import { SecondaryHeader } from '../components/SecondaryHeader';
 import { ScrollableCaption } from '../components/ScrollableCaption';
+import { MediaLightboxModal } from '../components/MediaLightboxModal';
 import './OrganizationDogDetailScreen.css';
 
 interface OrganizationDogDetailScreenProps {
@@ -74,9 +75,9 @@ function dateInputToIso(dateStr: string): string {
 
 export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged }: OrganizationDogDetailScreenProps) {
   const [media, setMedia] = useState<MediaItem[]>([]);
+  const [lightboxMedia, setLightboxMedia] = useState<{ mediaType: MediaType; url: string; caption?: string } | null>(null);
   const [loadingMedia, setLoadingMedia] = useState(true);
   const [panel, setPanel] = useState<Panel>({ type: 'none' });
-  const [lightboxMedia, setLightboxMedia] = useState<{ mediaType: MediaType; url: string } | null>(null);
 
   useEffect(() => {
     if (lightboxMedia) {
@@ -839,21 +840,21 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
                         poster={item.thumbnailUrl}
                         muted
                         preload="metadata"
-                        onClick={() => setLightboxMedia({ mediaType: 'VIDEO', url: item.url })}
+                        onClick={() => setLightboxMedia({ mediaType: 'VIDEO', url: item.url, caption: item.caption })}
                       />
                     ) : item.thumbnailUrl ? (
                       <img
                         className="org-dog-detail__media-thumb org-dog-detail__media-thumb--clickable"
                         src={item.thumbnailUrl}
                         alt={item.caption ?? dog.name}
-                        onClick={() => setLightboxMedia({ mediaType: 'PHOTO', url: item.url ?? item.thumbnailUrl })}
+                        onClick={() => setLightboxMedia({ mediaType: 'PHOTO', url: item.url ?? item.thumbnailUrl, caption: item.caption })}
                       />
                     ) : (
                       <img
                         className="org-dog-detail__media-thumb org-dog-detail__media-thumb--clickable"
                         src={item.url}
                         alt={item.caption ?? dog.name}
-                        onClick={() => setLightboxMedia({ mediaType: 'PHOTO', url: item.url })}
+                        onClick={() => setLightboxMedia({ mediaType: 'PHOTO', url: item.url, caption: item.caption })}
                       />
                     )}
                   </div>
@@ -872,19 +873,12 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
       </div>
 
       {lightboxMedia && (
-        <div className="org-dog-detail__lightbox" onClick={() => setLightboxMedia(null)}>
-          {lightboxMedia.mediaType === 'VIDEO' ? (
-            <video
-              className="org-dog-detail__lightbox-video"
-              src={lightboxMedia.url}
-              controls
-              autoPlay
-              onClick={(e) => e.stopPropagation()}
-            />
-          ) : (
-            <img className="org-dog-detail__lightbox-image" src={lightboxMedia.url} alt="" />
-          )}
-        </div>
+        <MediaLightboxModal
+          mediaType={lightboxMedia.mediaType}
+          url={lightboxMedia.url}
+          caption={lightboxMedia.caption}
+          onClose={() => setLightboxMedia(null)}
+        />
       )}
     </div>
   );
