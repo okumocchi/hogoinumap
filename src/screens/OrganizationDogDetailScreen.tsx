@@ -46,6 +46,14 @@ interface PendingFosterRequest {
   volunteerName: string;
 }
 
+interface ApprovedVolunteer {
+  id: string;
+  handleName: string;
+  prefecture: string;
+  city: string;
+  ownerSub: string;
+}
+
 interface MediaItem {
   id: string;
   mediaType: MediaType;
@@ -97,6 +105,193 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
   const [historySaving, setHistorySaving] = useState<string | null>(null);
   const [confirmingDeleteHistoryId, setConfirmingDeleteHistoryId] = useState<string | null>(null);
   const [historyDeleting, setHistoryDeleting] = useState<string | null>(null);
+
+  const [approvedVolunteers, setApprovedVolunteers] = useState<ApprovedVolunteer[]>([]);
+  const [loadingApprovedVolunteers, setLoadingApprovedVolunteers] = useState(true);
+  const [showAddHistoryModal, setShowAddHistoryModal] = useState(false);
+  const [selectedVolunteerId, setSelectedVolunteerId] = useState<string>('');
+  const [addHistorySubmitting, setAddHistorySubmitting] = useState(false);
+  const [addHistoryError, setAddHistoryError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadApprovedVolunteers() {
+      try {
+        const result = await dataClient.models.Affiliation.listByOrganizationAndStatus(
+          { organizationId: dog.organizationId, status: { eq: 'APPROVED' } },
+          { authMode: 'userPool' }
+        );
+        const vols = await Promise.all(
+          result.data.map(async (affiliation) => {
+            const volRes = await dataClient.models.Volunteer.get(
+              { id: affiliation.volunteerId },
+              { authMode: 'userPool' }
+            );
+            if (!volRes.data) return null;
+            return {
+              id: volRes.data.id,
+              handleName: volRes.data.handleName,
+              prefecture: volRes.data.prefecture,
+              city: volRes.data.city,
+              ownerSub: volRes.data.ownerSub ?? '',
+            };
+          })
+        );
+        if (!cancelled) {
+          setApprovedVolunteers(vols.filter((v): v is ApprovedVolunteer => v !== null));
+        }
+      } catch (err) {
+        console.error('Failed to load approved volunteers:', err);
+      } finally {
+        if (!cancelled) {
+          setLoadingApprovedVolunteers(false);
+        }
+      }
+    }
+
+    loadApprovedVolunteers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dog.organizationId]);
+
+  async function handleAddCustodyRecordSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!selectedVolunteerId) {
+      setAddHistoryError('預かり先ボランティアを選択してください。');
+      return;
+    }
+
+    const selectedVolunteer = approvedVolunteers.find((v) => v.id === selectedVolunteerId);
+    if (!selectedVolunteer) {
+      setAddHistoryError('選択されたボランティアが見つかりません。');
+      return;
+    }
+
+    setAddHistorySubmitting(true);
+    setAddHistoryError(null);
+
+    try {
+      // 1. スロットとMatchを取得して空きスロットを探す
+      const [slotRes, matchRes] = await Promise.all([
+        dataClient.models.FosteringSlot.listFosteringSlotsByVolunteer(
+          { volunteerId: selectedVolunteer.id },
+          { authMode: 'userPool' }
+        ),
+        dataClient.models.Match.listMatchesByVolunteer(
+          { volunteerId: selectedVolunteer.id },
+          { authMode: 'userPool' }
+        ),
+      ]);
+
+      const confirmedMatches = matchRes.data.filter((m) => m.status === 'CONFIRMED');
+      const usedSlotIds = new Set(confirmedMatches.map((m) => m.slotId).filter(Boolean));
+
+      const availableSlot = slotRes.data.find((slot) => !usedSlotIds.has(slot.id));
+
+      let targetSlotId: string;
+      if (availableSlot) {
+        targetSlotId = availableSlot.id;
+      } else {
+        // 空きスロットがない場合は内部で新規作成
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const newSlotRes = await dataClient.models.FosteringSlot.create(
+          {
+            volunteerId: selectedVolunteer.id,
+            conditionAges: [],
+            conditionGenders: [],
+            conditionSizes: [],
+            conditionPeriod: 'UNSPECIFIED',
+          } as any,
+          { authMode: 'userPool' }
+        );
+        if (newSlotRes.errors?.length || !newSlotRes.data) {
+          throw new Error(formatApiError(newSlotRes.errors, '預かりスロットの作成に失敗しました。'));
+        }
+        targetSlotId = newSlotRes.data.id;
+      }
+
+      // 2. Match の更新または作成
+      const matchOwners = selectedVolunteer.ownerSub
+        ? Array.from(new Set([...(dog.owners ?? []), selectedVolunteer.ownerSub]))
+        : (dog.owners ?? []);
+
+      const existingMatch = matchRes.data.find((m) => m.dogId === dog.id);
+      if (existingMatch) {
+        const matchUpdateRes = await dataClient.models.Match.update(
+          {
+            id: existingMatch.id,
+            slotId: targetSlotId,
+            status: 'CONFIRMED',
+            owners: matchOwners,
+          } as any,
+          { authMode: 'userPool' }
+        );
+        if (matchUpdateRes.errors?.length) {
+          throw new Error(formatApiError(matchUpdateRes.errors, 'マッチングの更新に失敗しました。'));
+        }
+      } else {
+        const matchCreateRes = await dataClient.models.Match.create(
+          {
+            dogId: dog.id,
+            volunteerId: selectedVolunteer.id,
+            slotId: targetSlotId,
+            status: 'CONFIRMED',
+            owners: matchOwners,
+          } as any,
+          { authMode: 'userPool' }
+        );
+        if (matchCreateRes.errors?.length) {
+          throw new Error(formatApiError(matchCreateRes.errors, 'マッチングの作成に失敗しました。'));
+        }
+      }
+
+      // 3. Dog の更新
+      const dogUpdateRes = await dataClient.models.Dog.update(
+        {
+          id: dog.id,
+          status: 'FOSTERED',
+          seekingFoster: false,
+          custodianOwnerSub: selectedVolunteer.ownerSub || undefined,
+        } as any,
+        { authMode: 'userPool' }
+      );
+      if (dogUpdateRes.errors?.length) {
+        throw new Error(formatApiError(dogUpdateRes.errors, '保護犬情報の更新に失敗しました。'));
+      }
+
+      // 4. CustodyRecord の作成
+      const custodyCreateRes = await dataClient.models.CustodyRecord.create(
+        {
+          dogId: dog.id,
+          custodianType: 'VOLUNTEER',
+          custodianId: selectedVolunteer.id,
+          custodianName: selectedVolunteer.handleName,
+          startDate: today(),
+          status: 'FOSTERED',
+          comment: '預かり開始',
+          owners: dog.owners,
+        } as any,
+        { authMode: 'userPool' }
+      );
+      if (custodyCreateRes.errors?.length) {
+        throw new Error(formatApiError(custodyCreateRes.errors, '預かり履歴の作成に失敗しました。'));
+      }
+
+      // 画面・親状態の更新
+      await fetchCustodyHistory();
+      await onDogsChanged();
+      setShowAddHistoryModal(false);
+      setSelectedVolunteerId('');
+    } catch (err) {
+      console.error('Failed to add custody history:', err);
+      setAddHistoryError(formatApiError(err, '預かり履歴の追加に失敗しました。'));
+    } finally {
+      setAddHistorySubmitting(false);
+    }
+  }
 
   async function fetchCustodyHistory() {
     try {
@@ -599,7 +794,20 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
         )}
 
         <section className="org-dog-detail__section org-dog-detail__history">
-          <h2>預かり履歴</h2>
+          <div className="org-dog-detail__heading-row">
+            <h2>預かり履歴</h2>
+            <button
+              type="button"
+              className="org-dog-detail__add-media-button"
+              onClick={() => {
+                setAddHistoryError(null);
+                setSelectedVolunteerId('');
+                setShowAddHistoryModal(true);
+              }}
+            >
+              + 預かり履歴を追加
+            </button>
+          </div>
           {loadingHistory ? (
             <p className="org-dog-detail__empty">履歴情報を読み込み中…</p>
           ) : custodyHistory.length === 0 ? (
@@ -879,6 +1087,63 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
           caption={lightboxMedia.caption}
           onClose={() => setLightboxMedia(null)}
         />
+      )}
+
+      {showAddHistoryModal && (
+        <div className="org-dog-detail__modal-overlay" onClick={() => setShowAddHistoryModal(false)}>
+          <div className="org-dog-detail__modal" onClick={(e) => e.stopPropagation()}>
+            <h3>預かり履歴を追加する</h3>
+            <form onSubmit={handleAddCustodyRecordSubmit}>
+              <label className="org-dog-detail__modal-field">
+                <span>預かり先ボランティアを選択</span>
+                {loadingApprovedVolunteers ? (
+                  <p className="org-dog-detail__empty">ボランティア一覧を読み込み中…</p>
+                ) : approvedVolunteers.length === 0 ? (
+                  <p className="org-dog-detail__empty">承認済みの預かりボランティアが登録されていません。</p>
+                ) : (
+                  <select
+                    className="org-dog-detail__modal-select"
+                    value={selectedVolunteerId}
+                    onChange={(e) => setSelectedVolunteerId(e.target.value)}
+                    disabled={addHistorySubmitting}
+                    required
+                  >
+                    <option value="">-- ボランティアを選択してください --</option>
+                    {approvedVolunteers.map((vol) => (
+                      <option key={vol.id} value={vol.id}>
+                        {vol.handleName}（{vol.prefecture} {vol.city}）
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </label>
+
+              {addHistoryError && <p className="org-dog-detail__error">{addHistoryError}</p>}
+
+              <div className="org-dog-detail__modal-actions">
+                <div className="org-dog-detail__modal-left-actions">
+                  <button
+                    type="button"
+                    className="org-dog-detail__link-button"
+                    onClick={() => setShowAddHistoryModal(false)}
+                    disabled={addHistorySubmitting}
+                  >
+                    キャンセル
+                  </button>
+                </div>
+                <div className="org-dog-detail__modal-right-actions">
+                  <button
+                    type="submit"
+                    className="org-dog-detail__small-button"
+                    disabled={addHistorySubmitting || approvedVolunteers.length === 0 || !selectedVolunteerId}
+                  >
+                    {addHistorySubmitting ? '登録中…' : '登録する'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

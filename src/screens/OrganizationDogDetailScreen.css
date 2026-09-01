@@ -390,7 +390,8 @@
   color: var(--text);
 }
 
-.org-dog-detail__modal-field input {
+.org-dog-detail__modal-field input,
+.org-dog-detail__modal-select {
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
