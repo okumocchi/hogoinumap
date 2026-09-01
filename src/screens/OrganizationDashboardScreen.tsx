@@ -6,7 +6,7 @@ import type { MyOrganization } from '../hooks/useMyOrganization';
 import { dataClient } from '../lib/dataClient';
 import type { Dog, DogGender, DogSize, DogStatus } from '../types/models';
 import { Badge } from '../components/Badge';
-import { calculateAgeLabel, dogStatusComment, effectiveDogStatusLabel, getDogStatusBadgeTone, genderLabel, isDogOpenForFosterOffers } from '../utils/dog';
+import { calculateAgeLabel, dogStatusComment, effectiveDogStatusLabel, getDogStatusBadgeTone, genderLabel, isDogOpenForFosterOffers, isSameOwnerSub } from '../utils/dog';
 import { geocodeAddress } from '../utils/geocode';
 import { PREFECTURES } from '../utils/prefectures';
 import { OrganizationDogDetailScreen } from './OrganizationDogDetailScreen';
@@ -232,6 +232,8 @@ export function OrganizationDashboardScreen({
     };
   }, [dogs]);
 
+  const [confirmedDogIdsByVolunteer, setConfirmedDogIdsByVolunteer] = useState<Record<string, string[]>>({});
+
   async function fetchDogs(): Promise<Dog[]> {
     const result = await dataClient.models.Dog.listByOrganization(
       { organizationId: organization.id },
@@ -261,19 +263,26 @@ export function OrganizationDashboardScreen({
     return mapped.sort((a, b) => b.protectedDate.localeCompare(a.protectedDate));
   }
 
-  async function fetchPendingMatches(): Promise<Record<string, number>> {
+  async function fetchMatchesData(): Promise<{
+    pendingCounts: Record<string, number>;
+    confirmedByVol: Record<string, string[]>;
+  }> {
     try {
       const matchResult = await dataClient.models.Match.list({ authMode: 'userPool' });
-      const counts: Record<string, number> = {};
+      const pendingCounts: Record<string, number> = {};
+      const confirmedByVol: Record<string, string[]> = {};
       matchResult.data.forEach((match) => {
         if ((match.status === 'REQUESTED' || match.status === 'NEGOTIATING') && match.dogId) {
-          counts[match.dogId] = (counts[match.dogId] || 0) + 1;
+          pendingCounts[match.dogId] = (pendingCounts[match.dogId] || 0) + 1;
+        } else if (match.status === 'CONFIRMED' && match.volunteerId && match.dogId) {
+          if (!confirmedByVol[match.volunteerId]) confirmedByVol[match.volunteerId] = [];
+          confirmedByVol[match.volunteerId].push(match.dogId);
         }
       });
-      return counts;
+      return { pendingCounts, confirmedByVol };
     } catch (err) {
-      console.error('Failed to fetch pending matches for org dashboard:', err);
-      return {};
+      console.error('Failed to fetch matches for org dashboard:', err);
+      return { pendingCounts: {}, confirmedByVol: {} };
     }
   }
 
@@ -281,13 +290,14 @@ export function OrganizationDashboardScreen({
     let cancelled = false;
 
     async function load() {
-      const [fetchedDogs, matchCounts] = await Promise.all([
+      const [fetchedDogs, matchData] = await Promise.all([
         fetchDogs(),
-        fetchPendingMatches(),
+        fetchMatchesData(),
       ]);
       if (!cancelled) {
         setDogs(fetchedDogs);
-        setPendingMatchCountsByDog(matchCounts);
+        setPendingMatchCountsByDog(matchData.pendingCounts);
+        setConfirmedDogIdsByVolunteer(matchData.confirmedByVol);
         setLoading(false);
       }
     }
@@ -1078,6 +1088,18 @@ export function OrganizationDashboardScreen({
                                   );
                                   const hasUnread = matchingThread ? (chatUnreads[matchingThread.id] ?? 0) > 0 : false;
 
+                                  const fosterDogIds = new Set<string>();
+                                  dogs.forEach((d) => {
+                                    if (isSameOwnerSub(d.custodianOwnerSub, vol.ownerSub) && (d.status === 'FOSTERED' || d.status === 'IN_TRANSIT')) {
+                                      fosterDogIds.add(d.id);
+                                    }
+                                  });
+                                  const matchDogIds = confirmedDogIdsByVolunteer[vol.id];
+                                  if (matchDogIds) {
+                                    matchDogIds.forEach((id) => fosterDogIds.add(id));
+                                  }
+                                  const dogEmojis = '🐕'.repeat(fosterDogIds.size);
+
                                   return (
                                     <li key={vol.id} className="org-dashboard__compact-item">
                                       <div className="org-dashboard__compact-info">
@@ -1101,10 +1123,12 @@ export function OrganizationDashboardScreen({
                                             className="org-dashboard__volunteer-link"
                                             onClick={() => onSelectVolunteer(vol.id)}
                                           >
-                                            {vol.handleName}
+                                            {vol.handleName}{dogEmojis ? ` ${dogEmojis}` : ''}
                                           </button>
                                         ) : (
-                                          <span className="org-dashboard__compact-name">{vol.handleName}</span>
+                                          <span className="org-dashboard__compact-name">
+                                            {vol.handleName}{dogEmojis ? ` ${dogEmojis}` : ''}
+                                          </span>
                                         )}
                                         {hasUnread && <span className="org-dashboard__unread-indicator">🔴 未読あり</span>}
                                       </div>

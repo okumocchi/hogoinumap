@@ -16,6 +16,7 @@ import {
   getDogStatusBadgeTone,
   genderLabel,
   isDogOpenForFosterOffers,
+  isSameOwnerSub,
 } from '../utils/dog';
 import { formatApiError } from '../utils/apiErrors';
 import { type ChatThreadItem } from '../hooks/useDashboardBadges';
@@ -150,6 +151,8 @@ export function OrganizationDetailScreen({
   const [isVolunteersOpen, setIsVolunteersOpen] = useState(false);
   const [openingChatVolunteerId, setOpeningChatVolunteerId] = useState<string | null>(null);
 
+  const [confirmedDogIdsByVolunteer, setConfirmedDogIdsByVolunteer] = useState<Record<string, string[]>>({});
+
   useEffect(() => {
     let cancelled = false;
 
@@ -161,10 +164,22 @@ export function OrganizationDetailScreen({
       }
 
       try {
-        const result = await dataClient.models.Affiliation.listByOrganizationAndStatus(
-          { organizationId, status: { eq: 'APPROVED' } },
-          { authMode: 'userPool' },
-        );
+        const [result, matchRes] = await Promise.all([
+          dataClient.models.Affiliation.listByOrganizationAndStatus(
+            { organizationId, status: { eq: 'APPROVED' } },
+            { authMode: 'userPool' },
+          ),
+          dataClient.models.Match.list({ authMode: 'userPool' }).catch(() => ({ data: [] })),
+        ]);
+
+        const confirmedByVol: Record<string, string[]> = {};
+        matchRes.data?.forEach((match) => {
+          if (match.status === 'CONFIRMED' && match.volunteerId && match.dogId) {
+            if (!confirmedByVol[match.volunteerId]) confirmedByVol[match.volunteerId] = [];
+            confirmedByVol[match.volunteerId].push(match.dogId);
+          }
+        });
+
         const volunteers = await Promise.all(
           result.data.map(async (affiliation) => {
             const volRes = await dataClient.models.Volunteer.get(
@@ -184,6 +199,7 @@ export function OrganizationDetailScreen({
           }),
         );
         if (!cancelled) {
+          setConfirmedDogIdsByVolunteer(confirmedByVol);
           setApprovedVolunteers(volunteers.filter((v): v is NonNullable<typeof v> => v !== null));
         }
       } catch (err) {
@@ -454,6 +470,18 @@ export function OrganizationDetailScreen({
                             );
                             const hasUnread = matchingThread ? (chatUnreads[matchingThread.id] ?? 0) > 0 : false;
 
+                            const fosterDogIds = new Set<string>();
+                            allDogs.forEach((d) => {
+                              if (isSameOwnerSub(d.custodianOwnerSub, vol.ownerSub) && (d.status === 'FOSTERED' || d.status === 'IN_TRANSIT')) {
+                                fosterDogIds.add(d.id);
+                              }
+                            });
+                            const matchDogIds = confirmedDogIdsByVolunteer[vol.id];
+                            if (matchDogIds) {
+                              matchDogIds.forEach((id) => fosterDogIds.add(id));
+                            }
+                            const dogEmojis = '🐕'.repeat(fosterDogIds.size);
+
                             return (
                               <li key={vol.id} className="org-dashboard__compact-item">
                                 <div className="org-dashboard__compact-info">
@@ -471,9 +499,8 @@ export function OrganizationDetailScreen({
                                       🎖️
                                     </span>
                                   )}
-                                  <span className="org-dashboard__compact-name">{vol.handleName}</span>
-                                  <span className="org-dashboard__compact-meta">
-                                    ({vol.prefecture} {vol.city})
+                                  <span className="org-dashboard__compact-name">
+                                    {vol.handleName}{dogEmojis ? ` ${dogEmojis}` : ''}
                                   </span>
                                   {hasUnread && <span className="org-dashboard__unread-indicator">🔴 未読あり</span>}
                                 </div>
