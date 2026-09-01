@@ -233,6 +233,7 @@ export function OrganizationDashboardScreen({
   }, [dogs]);
 
   const [confirmedDogIdsByVolunteer, setConfirmedDogIdsByVolunteer] = useState<Record<string, string[]>>({});
+  const [volunteerSlotCounts, setVolunteerSlotCounts] = useState<Record<string, number>>({});
 
   async function fetchDogs(): Promise<Dog[]> {
     const result = await dataClient.models.Dog.listByOrganization(
@@ -286,18 +287,36 @@ export function OrganizationDashboardScreen({
     }
   }
 
+  async function fetchFosteringSlotsData(): Promise<Record<string, number>> {
+    try {
+      const slotRes = await dataClient.models.FosteringSlot.list({ authMode: 'userPool' });
+      const slotCounts: Record<string, number> = {};
+      slotRes.data.forEach((slot) => {
+        if (slot.volunteerId) {
+          slotCounts[slot.volunteerId] = (slotCounts[slot.volunteerId] || 0) + 1;
+        }
+      });
+      return slotCounts;
+    } catch (err) {
+      console.error('Failed to fetch fostering slots:', err);
+      return {};
+    }
+  }
+
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
-      const [fetchedDogs, matchData] = await Promise.all([
+      const [fetchedDogs, matchData, slotCounts] = await Promise.all([
         fetchDogs(),
         fetchMatchesData(),
+        fetchFosteringSlotsData(),
       ]);
       if (!cancelled) {
         setDogs(fetchedDogs);
         setPendingMatchCountsByDog(matchData.pendingCounts);
         setConfirmedDogIdsByVolunteer(matchData.confirmedByVol);
+        setVolunteerSlotCounts(slotCounts);
         setLoading(false);
       }
     }
@@ -1098,7 +1117,9 @@ export function OrganizationDashboardScreen({
                                   if (matchDogIds) {
                                     matchDogIds.forEach((id) => fosterDogIds.add(id));
                                   }
-                                  const dogEmojis = '🐕'.repeat(fosterDogIds.size);
+                                  const fosteredCount = fosterDogIds.size;
+                                  const totalSlots = volunteerSlotCounts[vol.id] ?? 0;
+                                  const emptySlotCount = Math.max(0, totalSlots - fosteredCount);
 
                                   return (
                                     <li key={vol.id} className="org-dashboard__compact-item">
@@ -1123,11 +1144,35 @@ export function OrganizationDashboardScreen({
                                             className="org-dashboard__volunteer-link"
                                             onClick={() => onSelectVolunteer(vol.id)}
                                           >
-                                            {vol.handleName}{dogEmojis ? ` ${dogEmojis}` : ''}
+                                            <span>{vol.handleName}</span>
+                                            {(fosteredCount > 0 || emptySlotCount > 0) && (
+                                              <span style={{ marginLeft: '6px', display: 'inline-flex', gap: '1px' }}>
+                                                {Array.from({ length: fosteredCount }).map((_, i) => (
+                                                  <span key={`fostered-${i}`}>🐕</span>
+                                                ))}
+                                                {Array.from({ length: emptySlotCount }).map((_, i) => (
+                                                  <span key={`empty-${i}`} style={{ opacity: 0.75, filter: 'grayscale(100%)' }} title="空き預かりスロット">
+                                                    🐕
+                                                  </span>
+                                                ))}
+                                              </span>
+                                            )}
                                           </button>
                                         ) : (
                                           <span className="org-dashboard__compact-name">
-                                            {vol.handleName}{dogEmojis ? ` ${dogEmojis}` : ''}
+                                            <span>{vol.handleName}</span>
+                                            {(fosteredCount > 0 || emptySlotCount > 0) && (
+                                              <span style={{ marginLeft: '6px', display: 'inline-flex', gap: '1px' }}>
+                                                {Array.from({ length: fosteredCount }).map((_, i) => (
+                                                  <span key={`fostered-${i}`}>🐕</span>
+                                                ))}
+                                                {Array.from({ length: emptySlotCount }).map((_, i) => (
+                                                  <span key={`empty-${i}`} style={{ opacity: 0.75, filter: 'grayscale(100%)' }} title="空き預かりスロット">
+                                                    🐕
+                                                  </span>
+                                                ))}
+                                              </span>
+                                            )}
                                           </span>
                                         )}
                                         {hasUnread && <span className="org-dashboard__unread-indicator">🔴 未読あり</span>}
@@ -1336,10 +1381,10 @@ export function OrganizationDashboardScreen({
                             )}
                             {((pendingMatchCountsByDog[dog.id] ?? 0) > 0 ||
                               (dog.status === 'PROTECTED' && dog.custodianOwnerSub)) && (
-                              <span className="org-dashboard__dog-thumb-badge" title="未対応の預かり申し出あり">
-                                {pendingMatchCountsByDog[dog.id] || 1}
-                              </span>
-                            )}
+                                <span className="org-dashboard__dog-thumb-badge" title="未対応の預かり申し出あり">
+                                  {pendingMatchCountsByDog[dog.id] || 1}
+                                </span>
+                              )}
                           </div>
                           <div className="org-dashboard__dog-info">
                             <div className="org-dashboard__dog-heading">
@@ -1350,13 +1395,13 @@ export function OrganizationDashboardScreen({
                                 {isDogOpenForFosterOffers(dog) && <Badge tone="danger">預かり募集中</Badge>}
                                 {((pendingMatchCountsByDog[dog.id] ?? 0) > 0 ||
                                   (dog.status === 'PROTECTED' && dog.custodianOwnerSub)) && (
-                                  <Badge tone="danger">
-                                    預かり申し出あり
-                                    {(pendingMatchCountsByDog[dog.id] ?? 0) > 1
-                                      ? ` (${pendingMatchCountsByDog[dog.id]}件)`
-                                      : ''}
-                                  </Badge>
-                                )}
+                                    <Badge tone="danger">
+                                      預かり申し出あり
+                                      {(pendingMatchCountsByDog[dog.id] ?? 0) > 1
+                                        ? ` (${pendingMatchCountsByDog[dog.id]}件)`
+                                        : ''}
+                                    </Badge>
+                                  )}
                               </div>
                             </div>
                             <p className="org-dashboard__dog-meta">

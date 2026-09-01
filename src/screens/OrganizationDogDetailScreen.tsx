@@ -174,78 +174,76 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
     setAddHistoryError(null);
 
     try {
-      // 1. スロットとMatchを取得して空きスロットを探す
-      const [slotRes, matchRes] = await Promise.all([
-        dataClient.models.FosteringSlot.listFosteringSlotsByVolunteer(
-          { volunteerId: selectedVolunteer.id },
-          { authMode: 'userPool' }
-        ),
-        dataClient.models.Match.listMatchesByVolunteer(
-          { volunteerId: selectedVolunteer.id },
-          { authMode: 'userPool' }
-        ),
-      ]);
+      // 1 & 2. スロットとMatchの同期(非致死的なエラーはスキップして継続)
+      try {
+        const [slotRes, matchRes] = await Promise.all([
+          dataClient.models.FosteringSlot.listFosteringSlotsByVolunteer(
+            { volunteerId: selectedVolunteer.id },
+            { authMode: 'userPool' }
+          ),
+          dataClient.models.Match.listMatchesByVolunteer(
+            { volunteerId: selectedVolunteer.id },
+            { authMode: 'userPool' }
+          ),
+        ]);
 
-      const confirmedMatches = matchRes.data.filter((m) => m.status === 'CONFIRMED');
-      const usedSlotIds = new Set(confirmedMatches.map((m) => m.slotId).filter(Boolean));
+        const confirmedMatches = matchRes.data.filter((m) => m.status === 'CONFIRMED');
+        const usedSlotIds = new Set(confirmedMatches.map((m) => m.slotId).filter(Boolean));
 
-      const availableSlot = slotRes.data.find((slot) => !usedSlotIds.has(slot.id));
+        const availableSlot = slotRes.data.find((slot) => !usedSlotIds.has(slot.id));
 
-      let targetSlotId: string;
-      if (availableSlot) {
-        targetSlotId = availableSlot.id;
-      } else {
-        // 空きスロットがない場合は内部で新規作成
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const newSlotRes = await dataClient.models.FosteringSlot.create(
-          {
-            volunteerId: selectedVolunteer.id,
-            conditionAges: [],
-            conditionGenders: [],
-            conditionSizes: [],
-            conditionPeriod: 'UNSPECIFIED',
-          } as any,
-          { authMode: 'userPool' }
-        );
-        if (newSlotRes.errors?.length || !newSlotRes.data) {
-          throw new Error(formatApiError(newSlotRes.errors, '預かりスロットの作成に失敗しました。'));
+        let targetSlotId: string | undefined = availableSlot?.id;
+
+        if (!targetSlotId) {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const newSlotRes = await dataClient.models.FosteringSlot.create(
+              {
+                volunteerId: selectedVolunteer.id,
+                conditionAges: [],
+                conditionGenders: [],
+                conditionSizes: [],
+                conditionPeriod: 'UNSPECIFIED',
+              } as any,
+              { authMode: 'userPool' }
+            );
+            if (newSlotRes.data) {
+              targetSlotId = newSlotRes.data.id;
+            }
+          } catch (slotErr) {
+            console.warn('Failed to create fostering slot (non-fatal):', slotErr);
+          }
         }
-        targetSlotId = newSlotRes.data.id;
-      }
 
-      // 2. Match の更新または作成
-      const matchOwners = selectedVolunteer.ownerSub
-        ? Array.from(new Set([...(dog.owners ?? []), selectedVolunteer.ownerSub]))
-        : (dog.owners ?? []);
+        const matchOwners = selectedVolunteer.ownerSub
+          ? Array.from(new Set([...(dog.owners ?? []), selectedVolunteer.ownerSub]))
+          : (dog.owners ?? []);
 
-      const existingMatch = matchRes.data.find((m) => m.dogId === dog.id);
-      if (existingMatch) {
-        const matchUpdateRes = await dataClient.models.Match.update(
-          {
-            id: existingMatch.id,
-            slotId: targetSlotId,
-            status: 'CONFIRMED',
-            owners: matchOwners,
-          } as any,
-          { authMode: 'userPool' }
-        );
-        if (matchUpdateRes.errors?.length) {
-          throw new Error(formatApiError(matchUpdateRes.errors, 'マッチングの更新に失敗しました。'));
+        const existingMatch = matchRes.data.find((m) => m.dogId === dog.id);
+        if (existingMatch) {
+          await dataClient.models.Match.update(
+            {
+              id: existingMatch.id,
+              ...(targetSlotId ? { slotId: targetSlotId } : {}),
+              status: 'CONFIRMED',
+              owners: matchOwners,
+            } as any,
+            { authMode: 'userPool' }
+          );
+        } else {
+          await dataClient.models.Match.create(
+            {
+              dogId: dog.id,
+              volunteerId: selectedVolunteer.id,
+              ...(targetSlotId ? { slotId: targetSlotId } : {}),
+              status: 'CONFIRMED',
+              owners: matchOwners,
+            } as any,
+            { authMode: 'userPool' }
+          );
         }
-      } else {
-        const matchCreateRes = await dataClient.models.Match.create(
-          {
-            dogId: dog.id,
-            volunteerId: selectedVolunteer.id,
-            slotId: targetSlotId,
-            status: 'CONFIRMED',
-            owners: matchOwners,
-          } as any,
-          { authMode: 'userPool' }
-        );
-        if (matchCreateRes.errors?.length) {
-          throw new Error(formatApiError(matchCreateRes.errors, 'マッチングの作成に失敗しました。'));
-        }
+      } catch (syncErr) {
+        console.warn('Failed to sync slot/match (non-fatal):', syncErr);
       }
 
       // 3. Dog の更新

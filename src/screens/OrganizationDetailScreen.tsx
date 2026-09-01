@@ -109,7 +109,7 @@ export function OrganizationDetailScreen({
       ]);
       if (cancelled) return;
 
-  const approved = affiliationResult.data.some(
+      const approved = affiliationResult.data.some(
         (affiliation) => affiliation.organizationId === organizationId && affiliation.status === 'APPROVED',
       );
       setIsApprovedVolunteer(approved);
@@ -152,6 +152,7 @@ export function OrganizationDetailScreen({
   const [openingChatVolunteerId, setOpeningChatVolunteerId] = useState<string | null>(null);
 
   const [confirmedDogIdsByVolunteer, setConfirmedDogIdsByVolunteer] = useState<Record<string, string[]>>({});
+  const [volunteerSlotCounts, setVolunteerSlotCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -164,12 +165,13 @@ export function OrganizationDetailScreen({
       }
 
       try {
-        const [result, matchRes] = await Promise.all([
+        const [result, matchRes, slotRes] = await Promise.all([
           dataClient.models.Affiliation.listByOrganizationAndStatus(
             { organizationId, status: { eq: 'APPROVED' } },
             { authMode: 'userPool' },
           ),
           dataClient.models.Match.list({ authMode: 'userPool' }).catch(() => ({ data: [] })),
+          dataClient.models.FosteringSlot.list({ authMode: 'userPool' }).catch(() => ({ data: [] })),
         ]);
 
         const confirmedByVol: Record<string, string[]> = {};
@@ -177,6 +179,13 @@ export function OrganizationDetailScreen({
           if (match.status === 'CONFIRMED' && match.volunteerId && match.dogId) {
             if (!confirmedByVol[match.volunteerId]) confirmedByVol[match.volunteerId] = [];
             confirmedByVol[match.volunteerId].push(match.dogId);
+          }
+        });
+
+        const slotCounts: Record<string, number> = {};
+        slotRes.data?.forEach((slot) => {
+          if (slot.volunteerId) {
+            slotCounts[slot.volunteerId] = (slotCounts[slot.volunteerId] || 0) + 1;
           }
         });
 
@@ -200,6 +209,7 @@ export function OrganizationDetailScreen({
         );
         if (!cancelled) {
           setConfirmedDogIdsByVolunteer(confirmedByVol);
+          setVolunteerSlotCounts(slotCounts);
           setApprovedVolunteers(volunteers.filter((v): v is NonNullable<typeof v> => v !== null));
         }
       } catch (err) {
@@ -480,7 +490,9 @@ export function OrganizationDetailScreen({
                             if (matchDogIds) {
                               matchDogIds.forEach((id) => fosterDogIds.add(id));
                             }
-                            const dogEmojis = '🐕'.repeat(fosterDogIds.size);
+                            const fosteredCount = fosterDogIds.size;
+                            const totalSlots = volunteerSlotCounts[vol.id] ?? 0;
+                            const emptySlotCount = Math.max(0, totalSlots - fosteredCount);
 
                             return (
                               <li key={vol.id} className="org-dashboard__compact-item">
@@ -500,7 +512,19 @@ export function OrganizationDetailScreen({
                                     </span>
                                   )}
                                   <span className="org-dashboard__compact-name">
-                                    {vol.handleName}{dogEmojis ? ` ${dogEmojis}` : ''}
+                                    <span>{vol.handleName}</span>
+                                    {(fosteredCount > 0 || emptySlotCount > 0) && (
+                                      <span style={{ marginLeft: '6px', display: 'inline-flex', gap: '1px' }}>
+                                        {Array.from({ length: fosteredCount }).map((_, i) => (
+                                          <span key={`fostered-${i}`}>🐕</span>
+                                        ))}
+                                        {Array.from({ length: emptySlotCount }).map((_, i) => (
+                                          <span key={`empty-${i}`} style={{ opacity: 0.75, filter: 'grayscale(100%)' }} title="空き預かりスロット">
+                                            🐕
+                                          </span>
+                                        ))}
+                                      </span>
+                                    )}
                                   </span>
                                   {hasUnread && <span className="org-dashboard__unread-indicator">🔴 未読あり</span>}
                                 </div>

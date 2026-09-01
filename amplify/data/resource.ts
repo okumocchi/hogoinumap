@@ -299,7 +299,7 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.owner(),
       allow.guest().to(['read']), // 地図表示用
-      allow.authenticated().to(['read']),
+      allow.authenticated().to(['read', 'create', 'update']),
     ])
     // スロットは「存在すること自体が空きあり」を意味するため、空き状況を表す
     // 独立したフィールドは持たない(受入不可を表したい場合はスロット自体を削除する)。
@@ -325,7 +325,7 @@ const schema = a.schema({
       // 地図・詳細ページで「ボランティアが現在預かり中の犬」を表示するため、
       // 読み取りおよび団体モデレータ等の更新操作を広く許可する
       allow.guest().to(['read']),
-      allow.authenticated().to(['read', 'update']),
+      allow.authenticated().to(['read', 'create', 'update']),
     ])
     .secondaryIndexes((index) => [
       index('dogId').queryField('listMatchesByDog'),
