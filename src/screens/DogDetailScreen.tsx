@@ -4,6 +4,7 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { Badge } from '../components/Badge';
 import { useRegisteredVolunteers } from '../hooks/useRegisteredVolunteers';
 import { useMyVolunteer } from '../hooks/useMyVolunteer';
+import { useMyOrganization } from '../hooks/useMyOrganization';
 import { dataClient } from '../lib/dataClient';
 import type { CustodianType, MediaType, Dog, Organization, DogStatus } from '../types/models';
 import { SecondaryHeader } from '../components/SecondaryHeader';
@@ -88,6 +89,7 @@ function dateInputToIso(dateStr: string): string {
 export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDetailScreenProps) {
   const registeredVolunteers = useRegisteredVolunteers();
   const [myVolunteer] = useMyVolunteer();
+  const [myOrganization] = useMyOrganization();
   const [dog, setDog] = useState<Dog | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1294,7 +1296,9 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
           mediaType={lightboxMedia.mediaType}
           url={lightboxMedia.url}
           caption={lightboxMedia.caption}
-          canDownload={isApprovedVolunteer}
+          canDownload={Boolean(
+            isApprovedVolunteer || (myOrganization && dog?.organizationId === myOrganization.id)
+          )}
           dogName={dog?.name}
           onClose={() => setLightboxMedia(null)}
         />
