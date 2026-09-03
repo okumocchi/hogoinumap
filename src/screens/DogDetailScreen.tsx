@@ -1294,6 +1294,8 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
           mediaType={lightboxMedia.mediaType}
           url={lightboxMedia.url}
           caption={lightboxMedia.caption}
+          canDownload={isApprovedVolunteer}
+          dogName={dog?.name}
           onClose={() => setLightboxMedia(null)}
         />
       )}

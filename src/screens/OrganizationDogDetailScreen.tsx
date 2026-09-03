@@ -1083,6 +1083,8 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
           mediaType={lightboxMedia.mediaType}
           url={lightboxMedia.url}
           caption={lightboxMedia.caption}
+          canDownload={true}
+          dogName={dog?.name}
           onClose={() => setLightboxMedia(null)}
         />
       )}

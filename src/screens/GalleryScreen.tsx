@@ -5,6 +5,8 @@ import { SecondaryHeader } from '../components/SecondaryHeader';
 import { useRegisteredDogs } from '../hooks/useRegisteredDogs';
 import { useRegisteredOrganizations } from '../hooks/useRegisteredOrganizations';
 import { useRegisteredVolunteers } from '../hooks/useRegisteredVolunteers';
+import { useMyVolunteer } from '../hooks/useMyVolunteer';
+import { useMyOrganization } from '../hooks/useMyOrganization';
 import { dataClient } from '../lib/dataClient';
 import { calculateAgeAtLabel, calculateElapsedLabel } from '../utils/dog';
 import { getOrCreateAnonToken } from '../utils/likeHelper';
@@ -35,15 +37,55 @@ export function GalleryScreen({ onSelectDog, onBack }: GalleryScreenProps) {
   const registeredDogs = useRegisteredDogs();
   const registeredOrganizations = useRegisteredOrganizations();
   const registeredVolunteers = useRegisteredVolunteers();
+  const [myVolunteer] = useMyVolunteer();
+  const [myOrganization] = useMyOrganization();
+  const [approvedOrgIds, setApprovedOrgIds] = useState<Set<string>>(new Set());
+
   const [media, setMedia] = useState<GalleryMediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<'new' | 'likes'>('new');
   const [displayLimit, setDisplayLimit] = useState(30);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [myLikeIds, setMyLikeIds] = useState<Record<string, string>>({}); // dogMediaId -> MediaLike.id
-  const [lightboxMedia, setLightboxMedia] = useState<{ mediaType: 'PHOTO' | 'VIDEO'; url: string; caption?: string } | null>(null);
+  const [lightboxMedia, setLightboxMedia] = useState<{
+    mediaType: 'PHOTO' | 'VIDEO';
+    url: string;
+    caption?: string;
+    canDownload?: boolean;
+    dogName?: string;
+  } | null>(null);
   const [showNotice, setShowNotice] = useState(true);
   const [noticeHiding, setNoticeHiding] = useState(false);
+
+  // ログイン中ボランティアの所属承認済み団体IDを読み込む
+  useEffect(() => {
+    let cancelled = false;
+    async function loadApprovedAffiliations() {
+      if (!myVolunteer) {
+        setApprovedOrgIds(new Set());
+        return;
+      }
+      try {
+        const res = await dataClient.models.Affiliation.listAffiliationsByVolunteer(
+          { volunteerId: myVolunteer.id },
+          { authMode: 'userPool' },
+        );
+        if (cancelled) return;
+        const approvedSet = new Set(
+          res.data
+            .filter((a) => a.status === 'APPROVED')
+            .map((a) => a.organizationId),
+        );
+        setApprovedOrgIds(approvedSet);
+      } catch (err) {
+        console.error('Failed to load affiliations for gallery:', err);
+      }
+    }
+    loadApprovedAffiliations();
+    return () => {
+      cancelled = true;
+    };
+  }, [myVolunteer]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -359,6 +401,11 @@ export function GalleryScreen({ onSelectDog, onBack }: GalleryScreenProps) {
                 ? (fosterVolunteer?.wishlistUrl || undefined)
                 : (organization?.wishlistUrl || undefined);
 
+              const isApprovedForThisDog = Boolean(
+                (myOrganization && dog.organizationId === myOrganization.id) ||
+                (dog.organizationId && approvedOrgIds.has(dog.organizationId))
+              );
+
               return (
                 <article key={item.id} className="media-card">
                   <span className="media-card__age-badge">
@@ -388,21 +435,45 @@ export function GalleryScreen({ onSelectDog, onBack }: GalleryScreenProps) {
                         poster={item.thumbnailUrl}
                         muted
                         preload="metadata"
-                        onClick={() => setLightboxMedia({ mediaType: 'VIDEO', url: item.url, caption: item.caption })}
+                        onClick={() =>
+                          setLightboxMedia({
+                            mediaType: 'VIDEO',
+                            url: item.url,
+                            caption: item.caption,
+                            canDownload: isApprovedForThisDog,
+                            dogName: dog.name,
+                          })
+                        }
                       />
                     ) : item.thumbnailUrl ? (
                       <img
                         className="media-card__thumb media-card__thumb--clickable"
                         src={item.thumbnailUrl}
                         alt={item.caption ?? dog.name}
-                        onClick={() => setLightboxMedia({ mediaType: 'PHOTO', url: item.url ?? item.thumbnailUrl, caption: item.caption })}
+                        onClick={() =>
+                          setLightboxMedia({
+                            mediaType: 'PHOTO',
+                            url: item.url ?? item.thumbnailUrl,
+                            caption: item.caption,
+                            canDownload: isApprovedForThisDog,
+                            dogName: dog.name,
+                          })
+                        }
                       />
                     ) : item.url ? (
                       <img
                         className="media-card__thumb media-card__thumb--clickable"
                         src={item.url}
                         alt={item.caption ?? dog.name}
-                        onClick={() => setLightboxMedia({ mediaType: 'PHOTO', url: item.url, caption: item.caption })}
+                        onClick={() =>
+                          setLightboxMedia({
+                            mediaType: 'PHOTO',
+                            url: item.url,
+                            caption: item.caption,
+                            canDownload: isApprovedForThisDog,
+                            dogName: dog.name,
+                          })
+                        }
                       />
                     ) : (
                       <div className="media-card__thumb">
@@ -456,6 +527,8 @@ export function GalleryScreen({ onSelectDog, onBack }: GalleryScreenProps) {
           mediaType={lightboxMedia.mediaType}
           url={lightboxMedia.url}
           caption={lightboxMedia.caption}
+          canDownload={lightboxMedia.canDownload}
+          dogName={lightboxMedia.dogName}
           onClose={() => setLightboxMedia(null)}
         />
       )}

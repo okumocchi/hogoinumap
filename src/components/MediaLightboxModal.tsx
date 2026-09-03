@@ -6,6 +6,8 @@ interface MediaLightboxModalProps {
   url: string;
   onClose: () => void;
   caption?: string;
+  canDownload?: boolean;
+  dogName?: string;
 }
 
 export const MediaLightboxModal: React.FC<MediaLightboxModalProps> = ({
@@ -13,7 +15,10 @@ export const MediaLightboxModal: React.FC<MediaLightboxModalProps> = ({
   url,
   onClose,
   caption,
+  canDownload = false,
+  dogName,
 }) => {
+  const [isDownloading, setIsDownloading] = useState(false);
   const [translateY, setTranslateY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -133,6 +138,63 @@ export const MediaLightboxModal: React.FC<MediaLightboxModalProps> = ({
     transition: isDragging ? 'none' : 'background-color 0.2s ease',
   };
 
+  const handleDownload = async () => {
+    if (isDownloading) return;
+    setIsDownloading(true);
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch media: ${response.statusText}`);
+      }
+      const blob = await response.blob();
+
+      // 拡張子の判定
+      let ext = mediaType === 'VIDEO' ? '.mp4' : '.jpg';
+      const contentType = (blob.type || response.headers.get('content-type') || '').toLowerCase();
+      if (contentType.includes('mp4')) ext = '.mp4';
+      else if (contentType.includes('quicktime')) ext = '.mov';
+      else if (contentType.includes('webm')) ext = '.webm';
+      else if (contentType.includes('png')) ext = '.png';
+      else if (contentType.includes('jpeg') || contentType.includes('jpg')) ext = '.jpg';
+      else if (contentType.includes('webp')) ext = '.webp';
+
+      const typeLabel = mediaType === 'VIDEO' ? '動画' : '写真';
+      const baseName = dogName ? `${dogName}_${typeLabel}` : `hogoinu_${typeLabel}`;
+      const fileName = `${baseName}${ext}`;
+
+      const mimeType = blob.type || (mediaType === 'VIDEO' ? 'video/mp4' : 'image/jpeg');
+      const file = new File([blob], fileName, { type: mimeType });
+
+      // スマートフォン環境等で Web Share API を利用してカメラロール等に直接保存
+      if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: fileName,
+        });
+      } else {
+        // フォールバック: aタグのdownload属性によるファイル保存
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      }
+    } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        // 共有シートでのキャンセル操作
+        return;
+      }
+      console.error('Download failed:', err);
+      alert('ダウンロードに失敗しました。ネットワーク状況をご確認の上、再度お試しください。');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   return (
     <div
       className="media-lightbox-backdrop"
@@ -143,9 +205,48 @@ export const MediaLightboxModal: React.FC<MediaLightboxModalProps> = ({
       onMouseLeave={handleMouseUp}
     >
       <div className="media-lightbox-header" onClick={(e) => e.stopPropagation()}>
+        {canDownload && (
+          <button
+            type="button"
+            className="media-lightbox-btn media-lightbox-download-btn"
+            onClick={handleDownload}
+            disabled={isDownloading}
+            aria-label={`${mediaType === 'VIDEO' ? '動画' : '写真'}を保存`}
+            title={`${mediaType === 'VIDEO' ? '動画' : '写真'}を保存`}
+          >
+            {isDownloading ? (
+              <svg
+                className="media-lightbox-spinner"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
+                <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" strokeLinecap="round" />
+              </svg>
+            ) : (
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            )}
+          </button>
+        )}
         <button
           type="button"
-          className="media-lightbox-close-btn"
+          className="media-lightbox-btn media-lightbox-close-btn"
           onClick={onClose}
           aria-label="閉じる"
         >
