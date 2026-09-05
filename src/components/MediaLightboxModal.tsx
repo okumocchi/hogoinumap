@@ -138,6 +138,146 @@ export const MediaLightboxModal: React.FC<MediaLightboxModalProps> = ({
     transition: isDragging ? 'none' : 'background-color 0.2s ease',
   };
 
+interface MediaElementWithCaptureStream {
+  captureStream(): MediaStream;
+}
+
+// 画像BlobをJPEG（image/jpeg）に変換
+async function convertImageToJpeg(blob: Blob): Promise<Blob> {
+  if (blob.type === 'image/jpeg') {
+    return blob;
+  }
+  const img = new Image();
+  const url = URL.createObjectURL(blob);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('画像の読み込みに失敗しました。'));
+      img.src = url;
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Canvasの初期化に失敗しました。');
+    }
+
+    // 透過PNG等の場合に背景が黒くならないよう白で塗りつぶす
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+
+    const jpegBlob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, 'image/jpeg', 0.92)
+    );
+    if (!jpegBlob) {
+      throw new Error('JPEG形式への変換に失敗しました。');
+    }
+    return jpegBlob;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+// 動画BlobをMP4（video/mp4）にトランスコード（WebM等の場合）
+async function transcodeVideoToMp4(blob: Blob): Promise<Blob> {
+  const isAlreadyMp4 = blob.type.toLowerCase().includes('mp4');
+  if (isAlreadyMp4) {
+    return blob;
+  }
+
+  const mp4MimeCandidates = [
+    'video/mp4;codecs=avc1,mp4a.40.2',
+    'video/mp4;codecs=avc1',
+    'video/mp4',
+  ];
+  const supportedMp4Mime =
+    typeof MediaRecorder !== 'undefined'
+      ? mp4MimeCandidates.find((type) => MediaRecorder.isTypeSupported(type))
+      : null;
+
+  // ブラウザがMP4録画をサポートしていない場合は元データを返す
+  if (!supportedMp4Mime) {
+    return blob;
+  }
+
+  const objectUrl = URL.createObjectURL(blob);
+  const video = document.createElement('video');
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = 'auto';
+  video.src = objectUrl;
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      video.onloadedmetadata = () => resolve();
+      video.onerror = () => reject(new Error('動画の読み込みに失敗しました。'));
+    });
+
+    const width = video.videoWidth || 720;
+    const height = video.videoHeight || 1280;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return blob;
+
+    const tracks = [...canvas.captureStream(30).getVideoTracks()];
+    if ('captureStream' in video) {
+      const audioStream = (video as unknown as MediaElementWithCaptureStream).captureStream();
+      tracks.push(...audioStream.getAudioTracks());
+    }
+
+    const recorder = new MediaRecorder(new MediaStream(tracks), {
+      mimeType: supportedMp4Mime,
+      videoBitsPerSecond: 2_000_000,
+    });
+
+    const chunks: BlobPart[] = [];
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) chunks.push(event.data);
+    };
+
+    const stopped = new Promise<void>((resolve, reject) => {
+      recorder.onstop = () => resolve();
+      recorder.onerror = () => reject(new Error('動画の変換に失敗しました。'));
+    });
+
+    const durationSeconds = Math.min(video.duration || 10, 10);
+    const recordMillis = Math.max(0, durationSeconds * 1000 - 200);
+
+    let drawing = true;
+    const drawFrame = () => {
+      if (!drawing) return;
+      ctx.drawImage(video, 0, 0, width, height);
+      requestAnimationFrame(drawFrame);
+    };
+
+    video.currentTime = 0;
+    await video.play();
+    recorder.start();
+    drawFrame();
+
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, recordMillis);
+    });
+
+    drawing = false;
+    video.pause();
+    recorder.stop();
+    await stopped;
+
+    return new Blob(chunks, { type: 'video/mp4' });
+  } catch (err) {
+    console.warn('MP4 conversion failed, falling back to original blob:', err);
+    return blob;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
   const handleDownload = async () => {
     if (isDownloading) return;
     setIsDownloading(true);
@@ -147,24 +287,27 @@ export const MediaLightboxModal: React.FC<MediaLightboxModalProps> = ({
       if (!response.ok) {
         throw new Error(`Failed to fetch media: ${response.statusText}`);
       }
-      const blob = await response.blob();
+      const rawBlob = await response.blob();
 
-      // 拡張子の判定
-      let ext = mediaType === 'VIDEO' ? '.mp4' : '.jpg';
-      const contentType = (blob.type || response.headers.get('content-type') || '').toLowerCase();
-      if (contentType.includes('mp4')) ext = '.mp4';
-      else if (contentType.includes('quicktime')) ext = '.mov';
-      else if (contentType.includes('webm')) ext = '.webm';
-      else if (contentType.includes('png')) ext = '.png';
-      else if (contentType.includes('jpeg') || contentType.includes('jpg')) ext = '.jpg';
-      else if (contentType.includes('webp')) ext = '.webp';
+      let finalBlob: Blob;
+      let ext: string;
+      let mimeType: string;
+
+      if (mediaType === 'PHOTO') {
+        finalBlob = await convertImageToJpeg(rawBlob);
+        ext = '.jpg';
+        mimeType = 'image/jpeg';
+      } else {
+        finalBlob = await transcodeVideoToMp4(rawBlob);
+        ext = '.mp4';
+        mimeType = 'video/mp4';
+      }
 
       const typeLabel = mediaType === 'VIDEO' ? '動画' : '写真';
       const baseName = dogName ? `${dogName}_${typeLabel}` : `hogoinu_${typeLabel}`;
       const fileName = `${baseName}${ext}`;
 
-      const mimeType = blob.type || (mediaType === 'VIDEO' ? 'video/mp4' : 'image/jpeg');
-      const file = new File([blob], fileName, { type: mimeType });
+      const file = new File([finalBlob], fileName, { type: mimeType });
 
       // スマートフォン環境等で Web Share API を利用してカメラロール等に直接保存
       if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -174,7 +317,7 @@ export const MediaLightboxModal: React.FC<MediaLightboxModalProps> = ({
         });
       } else {
         // フォールバック: aタグのdownload属性によるファイル保存
-        const blobUrl = URL.createObjectURL(blob);
+        const blobUrl = URL.createObjectURL(finalBlob);
         const a = document.createElement('a');
         a.href = blobUrl;
         a.download = fileName;
@@ -183,8 +326,8 @@ export const MediaLightboxModal: React.FC<MediaLightboxModalProps> = ({
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
       }
-    } catch (err: any) {
-      if (err?.name === 'AbortError') {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') {
         // 共有シートでのキャンセル操作
         return;
       }
@@ -212,7 +355,7 @@ export const MediaLightboxModal: React.FC<MediaLightboxModalProps> = ({
             onClick={handleDownload}
             disabled={isDownloading}
             aria-label={`${mediaType === 'VIDEO' ? '動画' : '写真'}を保存`}
-            title={`${mediaType === 'VIDEO' ? '動画' : '写真'}を保存`}
+            title={isDownloading ? '保存の準備中...' : `${mediaType === 'VIDEO' ? '動画' : '写真'}を保存`}
           >
             {isDownloading ? (
               <svg
