@@ -6,7 +6,7 @@ import type { MyVolunteer } from '../hooks/useMyVolunteer';
 import { useRegisteredOrganizations } from '../hooks/useRegisteredOrganizations';
 import { dataClient } from '../lib/dataClient';
 import type { DogGender, DogSize, DogStatus } from '../types/models';
-import { calculateAgeLabel, dogStatusComment, effectiveDogStatusLabel, genderLabel } from '../utils/dog';
+import { calculateAgeLabel, dogStatusComment, effectiveDogStatusLabel, genderLabel, isSameOwnerSub } from '../utils/dog';
 import { PREFECTURES } from '../utils/prefectures';
 import { SecondaryHeader } from '../components/SecondaryHeader';
 import './VolunteerDashboardScreen.css';
@@ -483,12 +483,65 @@ export function VolunteerDashboardScreen({
         const dogResult = await dataClient.models.Dog.get({ id: match.dogId }, { authMode: 'userPool' });
         const dog = dogResult.data;
 
-        // 犬が存在しない、譲渡済み（ADOPTED）、返還（RETURNED）、または預かり先が別のボランティアに変更されている場合はスロットを空きにする
-        const isNotOccupant =
-          !dog ||
-          dog.status === 'ADOPTED' ||
-          dog.status === 'RETURNED' ||
-          (Boolean(dog.custodianOwnerSub && volunteer.ownerSub) && dog.custodianOwnerSub !== volunteer.ownerSub);
+        let isNotOccupant = false;
+
+        if (!dog) {
+          isNotOccupant = true;
+        } else if (dog.status === 'ADOPTED' || dog.status === 'RETURNED' || dog.status === 'PROTECTED') {
+          // 譲渡決定・返還・保護中（団体預かり）の場合はボランティア預かりではない
+          isNotOccupant = true;
+        } else {
+          // 1. 最新の預かり履歴（CustodyRecord）を照合
+          try {
+            const custodyRes = await dataClient.models.CustodyRecord.listCustodyRecordsByDog(
+              { dogId: match.dogId },
+              { authMode: 'userPool' }
+            );
+            if (custodyRes.data.length > 0) {
+              const sortedRecords = [...custodyRes.data].sort((a, b) => {
+                const dateDiff = (b.startDate || '').localeCompare(a.startDate || '');
+                if (dateDiff !== 0) return dateDiff;
+                return (b.createdAt || '').localeCompare(a.createdAt || '');
+              });
+              const latestRecord = sortedRecords[0];
+              // 最新の預かり先が「団体」または「別のボランティア」になっている場合
+              if (
+                latestRecord.custodianType === 'ORGANIZATION' ||
+                (latestRecord.custodianId && latestRecord.custodianId !== volunteer.id)
+              ) {
+                isNotOccupant = true;
+              }
+            }
+          } catch (cErr) {
+            console.warn('Failed to check custody record:', cErr);
+          }
+
+          // 2. この犬に紐付く別のボランティアのCONFIRMEDなMatchが存在するか照合
+          if (!isNotOccupant) {
+            try {
+              const dogMatchesRes = await dataClient.models.Match.listMatchesByDog(
+                { dogId: match.dogId },
+                { authMode: 'userPool' }
+              );
+              const otherConfirmedMatch = dogMatchesRes.data.find(
+                (m) => m.volunteerId !== volunteer.id && m.status === 'CONFIRMED'
+              );
+              if (otherConfirmedMatch) {
+                isNotOccupant = true;
+              }
+            } catch (mErr) {
+              console.warn('Failed to check dog matches:', mErr);
+            }
+          }
+
+          // 3. custodianOwnerSubの照合
+          if (!isNotOccupant && dog.custodianOwnerSub) {
+            const volOwnerSub = volunteer.ownerSub;
+            if (volOwnerSub && !isSameOwnerSub(dog.custodianOwnerSub, volOwnerSub)) {
+              isNotOccupant = true;
+            }
+          }
+        }
 
         if (isNotOccupant) {
           // 不整合Matchをバックグラウンドで自己修復（CANCELLEDかつslotId解除）
