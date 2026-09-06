@@ -12,6 +12,7 @@ export interface MyVolunteer {
   longitude?: number;
   profileIntroduction: string;
   wishlistUrl?: string;
+  ownerSub?: string;
 }
 
 // undefined = 判定中, null = ボランティアアカウントではない(未ログイン含む), MyVolunteer = 自分の情報
@@ -29,6 +30,7 @@ export function useMyVolunteer(): [MyVolunteer | null | undefined, () => void] {
       });
 
       const volunteerRecord = result.data[0];
+      const myOwnerSub = volunteerRecord?.ownerSub || (userId && username ? `${userId}::${username}` : undefined);
       setVolunteer(
         volunteerRecord
           ? {
@@ -40,6 +42,7 @@ export function useMyVolunteer(): [MyVolunteer | null | undefined, () => void] {
               longitude: volunteerRecord.longitude ?? undefined,
               profileIntroduction: volunteerRecord.profileIntroduction ?? '',
               wishlistUrl: volunteerRecord.wishlistUrl ?? undefined,
+              ownerSub: myOwnerSub,
             }
           : null,
       );

@@ -111,6 +111,25 @@ export function VolunteerDetailScreen(props: VolunteerDetailScreenProps) {
           activeMatches.map(async (match) => {
             const dogResult = await dataClient.models.Dog.get({ id: match.dogId }, { authMode });
             const dog = dogResult.data;
+
+            // 犬が存在しない、譲渡済み（ADOPTED）、返還（RETURNED）、または預かり先が別のボランティアに変更されている場合はスロットを空きにする
+            const isNotOccupant =
+              !dog ||
+              dog.status === 'ADOPTED' ||
+              dog.status === 'RETURNED' ||
+              (Boolean(dog.custodianOwnerSub && volunteer?.ownerSub) && dog.custodianOwnerSub !== volunteer?.ownerSub);
+
+            if (isNotOccupant) {
+              if (authMode === 'userPool') {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                dataClient.models.Match.update(
+                  { id: match.id, status: 'CANCELLED', slotId: null } as any,
+                  { authMode: 'userPool' }
+                ).catch((e) => console.warn('Failed to auto-clean obsolete match in detail:', e));
+              }
+              return null;
+            }
+
             const occupant: SlotOccupant = {
               dogId: match.dogId,
               name: dog?.name ?? '(不明な保護犬)',
@@ -126,9 +145,11 @@ export function VolunteerDetailScreen(props: VolunteerDetailScreenProps) {
           })
         );
 
+        const validEntries = entries.filter((entry): entry is readonly [string, SlotOccupant] => entry !== null);
+
         if (!cancelled) {
           setSlots(mappedSlots);
-          setSlotOccupants(Object.fromEntries(entries));
+          setSlotOccupants(Object.fromEntries(validEntries));
           setLoadingSlots(false);
         }
       } catch (err) {

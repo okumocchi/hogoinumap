@@ -709,6 +709,8 @@ export function OrganizationDashboardScreen({
     try {
       const currentDog = dogs.find((d) => d.id === dogId);
       const isStatusChanged = currentDog && currentDog.status !== values.status;
+      const isNoLongerFostered =
+        isStatusChanged && values.status !== 'FOSTERED' && values.status !== 'IN_TRANSIT';
 
       const owners = await getDogOwners();
       const dogInput = {
@@ -718,7 +720,33 @@ export function OrganizationDashboardScreen({
         rabiesVaccinationDate: values.rabiesVaccinationDate || undefined,
         mixedVaccinationDate: values.mixedVaccinationDate || undefined,
         owners,
+        ...(isNoLongerFostered ? { custodianOwnerSub: '' } : {}),
       };
+
+      // 譲渡（ADOPTED）や返還、保護中など預かりが終了した場合、紐付くMatchをキャンセルしてスロットを空き状態に戻す
+      if (isNoLongerFostered) {
+        try {
+          const dogMatchesRes = await dataClient.models.Match.listMatchesByDog(
+            { dogId },
+            { authMode: 'userPool' }
+          );
+          const activeMatches = dogMatchesRes.data.filter((m) => m.status !== 'CANCELLED');
+          for (const match of activeMatches) {
+            try {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              await dataClient.models.Match.update(
+                { id: match.id, status: 'CANCELLED', slotId: null } as any,
+                { authMode: 'userPool' }
+              );
+            } catch (mErr) {
+              console.warn(`Failed to cancel match ${match.id} for dog ${dogId}:`, mErr);
+            }
+          }
+        } catch (matchErr) {
+          console.warn('Failed to query matches for dog update:', matchErr);
+        }
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await dataClient.models.Dog.update(dogInput as any);
       if (result.errors?.length) {

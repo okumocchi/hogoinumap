@@ -123,3 +123,139 @@
   -webkit-backdrop-filter: blur(4px);
 }
 
+/* ダウンロード準備中のステータスピル */
+.media-lightbox-status-pill {
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: media-lightbox-fade-in 0.2s ease-out;
+}
+
+/* スマホ向け保存アクションシート */
+.media-lightbox-save-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10010;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: media-lightbox-fade-in 0.2s ease-out;
+  cursor: default;
+}
+
+@keyframes media-lightbox-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes media-lightbox-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.media-lightbox-save-sheet {
+  width: 100%;
+  max-width: 440px;
+  background: rgba(28, 28, 30, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-bottom: none;
+  border-radius: 20px 20px 0 0;
+  padding: 14px 20px calc(24px + env(safe-area-inset-bottom, 12px)) 20px;
+  box-sizing: border-box;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.6);
+  animation: media-lightbox-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: #fff;
+}
+
+.media-lightbox-save-sheet-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.3);
+  margin-bottom: 14px;
+}
+
+.media-lightbox-save-sheet-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.media-lightbox-save-sheet-filename {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
+  margin-bottom: 20px;
+  word-break: break-all;
+}
+
+.media-lightbox-save-sheet-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.media-lightbox-save-btn {
+  width: 100%;
+  padding: 13px 16px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.1s ease, filter 0.15s ease;
+}
+
+.media-lightbox-save-btn:active {
+  transform: scale(0.98);
+}
+
+.media-lightbox-save-btn--primary {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+.media-lightbox-save-btn--secondary {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.media-lightbox-save-btn--cancel {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+

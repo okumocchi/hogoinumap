@@ -176,6 +176,34 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
     try {
       // 1 & 2. スロットとMatchの同期(非致死的なエラーはスキップして継続)
       try {
+        // 旧預かりボランティアのMatchをキャンセルしスロットを空き状態に戻す
+        try {
+          const dogMatchesRes = await dataClient.models.Match.listMatchesByDog(
+            { dogId: dog.id },
+            { authMode: 'userPool' }
+          );
+          const previousMatches = dogMatchesRes.data.filter(
+            (m) => m.volunteerId !== selectedVolunteer.id && m.status !== 'CANCELLED'
+          );
+          for (const prevMatch of previousMatches) {
+            try {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              await dataClient.models.Match.update(
+                {
+                  id: prevMatch.id,
+                  status: 'CANCELLED',
+                  slotId: null,
+                } as any,
+                { authMode: 'userPool' }
+              );
+            } catch (err) {
+              console.warn(`Failed to cancel previous match ${prevMatch.id}:`, err);
+            }
+          }
+        } catch (prevErr) {
+          console.warn('Failed to query previous matches for dog:', prevErr);
+        }
+
         const [slotRes, matchRes] = await Promise.all([
           dataClient.models.FosteringSlot.listFosteringSlotsByVolunteer(
             { volunteerId: selectedVolunteer.id },
