@@ -34,6 +34,7 @@ export const MediaLightboxModal: React.FC<MediaLightboxModalProps> = ({
   const startYRef = useRef<number>(0);
   const currentYRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
+  const imageRef = useRef<HTMLImageElement>(null);
 
   // readyFileのBlob URLをクリーンアップ
   const cleanupReadyFile = () => {
@@ -345,6 +346,69 @@ async function transcodeVideoToMp4(blob: Blob, mediaUrl: string): Promise<Blob> 
   }
 }
 
+// SafariのCORSキャッシュ不一致対策を含む画像・動画取得関数
+async function fetchMediaBlob(mediaUrl: string): Promise<Blob> {
+  // 1. fetch (cache: 'no-cache')
+  try {
+    const res = await fetch(mediaUrl, { cache: 'no-cache' });
+    if (res.ok) {
+      return await res.blob();
+    }
+  } catch (err) {
+    console.warn('fetch with no-cache failed:', err);
+  }
+
+  // 2. fetch (cache: 'reload')
+  try {
+    const res = await fetch(mediaUrl, { cache: 'reload' });
+    if (res.ok) {
+      return await res.blob();
+    }
+  } catch (err) {
+    console.warn('fetch with reload failed:', err);
+  }
+
+  // 3. SafariのCache CORS問題に対する最終フォールバック: XMLHttpRequest
+  return new Promise<Blob>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', mediaUrl, true);
+    xhr.responseType = 'blob';
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300 && xhr.response) {
+        resolve(xhr.response as Blob);
+      } else {
+        reject(new Error(`通信エラー (status: ${xhr.status})`));
+      }
+    };
+    xhr.onerror = () => reject(new Error('ネットワーク通信に失敗しました。'));
+    xhr.ontimeout = () => reject(new Error('通信がタイムアウトしました。'));
+    xhr.send();
+  });
+}
+
+// 画面に読み込み済みのimg要素から直接Canvas描画してBlobを抽出（通信不要・最速）
+async function getImageBlobFromElement(img: HTMLImageElement): Promise<Blob | null> {
+  if (!img.complete || img.naturalWidth === 0) return null;
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+
+    return await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, 'image/jpeg', 0.92)
+    );
+  } catch (err) {
+    console.warn('getImageBlobFromElement failed (cross-origin or tainted canvas):', err);
+    return null;
+  }
+}
+
   // ダウンロード準備の開始
   const handleDownload = async () => {
     if (isDownloading) return;
@@ -352,21 +416,29 @@ async function transcodeVideoToMp4(blob: Blob, mediaUrl: string): Promise<Blob> 
     setDownloadStatusText(mediaType === 'VIDEO' ? '動画を準備中...' : '写真をJPEGに変換中...');
 
     try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch media: ${response.statusText}`);
-      }
-      const rawBlob = await response.blob();
-
       let finalBlob: Blob;
       let ext: string;
       let mimeType: string;
 
       if (mediaType === 'PHOTO') {
-        finalBlob = await convertImageToJpeg(rawBlob);
         ext = '.jpg';
         mimeType = 'image/jpeg';
+
+        // 1. まず表示中のimg要素から直接Canvas描画を試行（通信不要＆最速）
+        let directBlob: Blob | null = null;
+        if (imageRef.current) {
+          directBlob = await getImageBlobFromElement(imageRef.current);
+        }
+
+        if (directBlob) {
+          finalBlob = directBlob;
+        } else {
+          // 2. 表示中要素から取得できなかった場合は多重フォールバックでBlobを取得し変換
+          const rawBlob = await fetchMediaBlob(url);
+          finalBlob = await convertImageToJpeg(rawBlob);
+        }
       } else {
+        const rawBlob = await fetchMediaBlob(url);
         finalBlob = await transcodeVideoToMp4(rawBlob, url);
         ext = '.mp4';
         mimeType = 'video/mp4';
@@ -537,6 +609,8 @@ async function transcodeVideoToMp4(blob: Blob, mediaUrl: string): Promise<Blob> 
           />
         ) : (
           <img
+            ref={imageRef}
+            crossOrigin="anonymous"
             className="media-lightbox-image"
             src={url}
             alt={caption || ''}
