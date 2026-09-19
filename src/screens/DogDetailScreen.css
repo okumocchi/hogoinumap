@@ -264,6 +264,9 @@
   padding: 3px 7px;
   border-radius: 6px;
   white-space: nowrap;
+  max-width: calc(100% - 46px);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .media-card__media-container {

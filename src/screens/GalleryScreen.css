@@ -138,11 +138,14 @@
   padding: 3px 7px;
   border-radius: 6px;
   white-space: nowrap;
+  max-width: calc(100% - 52px);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .media-card__adopted-badge {
   position: absolute;
-  top: 34px;
+  top: 48px;
   right: 6px;
   z-index: 12;
   width: 44px;
@@ -250,24 +253,32 @@
 }
 
 /* Detail page links in gallery cards (top-right) */
-.media-card__detail-button {
+.media-card__info-button {
   position: absolute;
   top: 6px;
   right: 6px;
   z-index: 12;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(0, 0, 0, 0.6);
-  color: #fff;
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 600;
+  border: none;
+  background: transparent;
+  width: 39px;
+  height: 39px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  backdrop-filter: blur(4px);
-  transition: background 0.2s;
-  white-space: nowrap;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
+  transition: transform 0.15s ease, filter 0.15s ease;
 }
 
-.media-card__detail-button:hover {
-  background: rgba(0, 0, 0, 0.85);
+.media-card__info-button:hover {
+  transform: scale(1.08);
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.8));
+}
+
+.media-card__info-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }

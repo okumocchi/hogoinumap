@@ -37,6 +37,7 @@ export function useRegisteredDogs(): Dog[] {
         mixedVaccinationDate: dog.mixedVaccinationDate ?? undefined,
         prefecture: dog.prefecture,
         city: dog.city,
+        owners: (dog.owners ?? []).filter((v): v is string => !!v),
       }));
 
       const filtered = mapped.filter((dog) => dog.status !== 'SUSPENDED');

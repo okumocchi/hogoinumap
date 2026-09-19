@@ -18,6 +18,8 @@ export interface Organization {
   contactPhone?: string;
   wishlistUrl?: string;
   websiteUrl?: string;
+  ownerSub?: string;
+  owners?: string[];
 }
 
 export interface Volunteer {

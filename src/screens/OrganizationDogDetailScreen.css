@@ -263,6 +263,9 @@
   padding: 3px 7px;
   border-radius: 6px;
   white-space: nowrap;
+  max-width: calc(100% - 46px);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .org-dog-detail__media-edit-button {

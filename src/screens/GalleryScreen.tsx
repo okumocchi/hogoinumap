@@ -409,7 +409,7 @@ export function GalleryScreen({ onSelectDog, onBack }: GalleryScreenProps) {
               return (
                 <article key={item.id} className="media-card">
                   <span className="media-card__age-badge">
-                    {calculateAgeAtLabel(dog.birthDate, item.capturedAt || item.createdAt)}（{calculateElapsedLabel(item.capturedAt || item.createdAt)}）
+                    {dog.name ? `${dog.name} ` : ''}{calculateAgeAtLabel(dog.birthDate, item.capturedAt || item.createdAt)}（{calculateElapsedLabel(item.capturedAt || item.createdAt)}）
                   </span>
                   {dog.status === 'ADOPTED' && (
                     <img
@@ -421,11 +421,12 @@ export function GalleryScreen({ onSelectDog, onBack }: GalleryScreenProps) {
                   )}
                   <button
                     type="button"
-                    className="media-card__detail-button"
+                    className="media-card__info-button"
                     onClick={() => onSelectDog(item.dogId)}
                     title={`${dog.name}の詳細を見る`}
+                    aria-label={`${dog.name}の詳細を見る`}
                   >
-                    ℹ️ {dog.name}
+                    <img src="/icon_info.svg" alt="保護犬詳細" className="media-card__info-icon" />
                   </button>
                   <div className="media-card__media-container">
                     {item.mediaType === 'VIDEO' && item.url ? (

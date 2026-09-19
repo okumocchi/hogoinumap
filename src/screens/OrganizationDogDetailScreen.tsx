@@ -1,4 +1,4 @@
-import { fetchAuthSession } from 'aws-amplify/auth';
+import { fetchAuthSession, getCurrentUser } from 'aws-amplify/auth';
 import { getUrl, remove } from 'aws-amplify/storage';
 import { type FormEvent, useEffect, useState } from 'react';
 import { Badge } from '../components/Badge';
@@ -628,7 +628,17 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
         caption: uploadCaption || undefined,
         // EXIFから撮影日時が取得できない場合は投稿日時を撮影日時とする
         capturedAt: (capturedAt ?? new Date()).toISOString(),
-        owners: dog.owners,
+        owners: await (async () => {
+          const ownersSet = new Set<string>();
+          (dog.owners ?? []).forEach((o) => { if (o) ownersSet.add(o); });
+          try {
+            const { userId, username } = await getCurrentUser();
+            ownersSet.add(`${userId}::${username}`);
+          } catch {
+            // ignore
+          }
+          return Array.from(ownersSet);
+        })(),
       };
       // Dog登録と同様、data-schemaの型推論バグを回避するためas anyを使用
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1056,7 +1066,7 @@ export function OrganizationDogDetailScreen({ dog, onBack, onEdit, onDogsChanged
                   className="org-dog-detail__media-card"
                 >
                   <span className="org-dog-detail__media-age-badge">
-                    {calculateAgeAtLabel(dog.birthDate, item.capturedAt)}（{calculateElapsedLabel(item.capturedAt)}）
+                    {dog.name ? `${dog.name} ` : ''}{calculateAgeAtLabel(dog.birthDate, item.capturedAt)}（{calculateElapsedLabel(item.capturedAt)}）
                   </span>
                   <button
                     type="button"

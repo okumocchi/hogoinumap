@@ -131,7 +131,7 @@ const schema = a.schema({
         allow.owner(),
         allow.ownersDefinedIn('owners'),
         allow.guest().to(['read']),
-        allow.authenticated().to(['read']),
+        allow.authenticated().to(['read', 'update']),
         allow.ownerDefinedIn('custodianOwnerSub').to(['read', 'update']),
       ]),
       // IN_TRANSIT: 団体→ボランティア、またはボランティア→別のボランティアへの移送中
@@ -153,7 +153,7 @@ const schema = a.schema({
         allow.owner(),
         allow.ownersDefinedIn('owners'),
         allow.guest().to(['read']),
-        allow.authenticated().to(['read']),
+        allow.authenticated().to(['read', 'update']),
         allow.ownerDefinedIn('custodianOwnerSub').to(['read', 'update']),
       ]),
       seekingAdopter: a.boolean().default(true), // 里親募集中フラグ
@@ -161,7 +161,7 @@ const schema = a.schema({
         allow.owner(),
         allow.ownersDefinedIn('owners'),
         allow.guest().to(['read']),
-        allow.authenticated().to(['read']),
+        allow.authenticated().to(['read', 'update']),
         allow.ownerDefinedIn('custodianOwnerSub').to(['read', 'update']),
       ]), // 預かりボランティア募集中フラグ
 
@@ -195,7 +195,7 @@ const schema = a.schema({
       allow.owner(), // 登録した本人が編集
       allow.ownersDefinedIn('owners'), // 団体アカウント・モデレータ等の指定されたオーナーが編集
       allow.guest().to(['read']), // 譲渡希望者・支援者が閲覧
-      allow.authenticated().to(['read']),
+      allow.authenticated().to(['read', 'create', 'update', 'delete']),
     ])
     // 地図側の「募集中の犬を地域で絞り込み」は、seekingFosterがboolean型のため
     // GSIのキーにできない(Amplify DataはPK/SKにstring・number・enumのみ許可)。
@@ -266,7 +266,7 @@ const schema = a.schema({
       allow.owner(), // 投稿した団体が編集・削除
       allow.ownersDefinedIn('owners'),
       allow.guest().to(['read']),
-      allow.authenticated().to(['read']),
+      allow.authenticated().to(['read', 'create', 'update', 'delete']),
     ])
     .secondaryIndexes((index) => [
       // 「この犬の写真・動画を新着順で」→ クエリ時に sortDirection: 'DESC' を指定

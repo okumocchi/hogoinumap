@@ -260,6 +260,7 @@ export function OrganizationDashboardScreen({
       mixedVaccinationDate: dog.mixedVaccinationDate ?? undefined,
       prefecture: dog.prefecture,
       city: dog.city,
+      owners: (dog.owners ?? []).filter((v): v is string => !!v),
     }));
     return mapped.sort((a, b) => b.protectedDate.localeCompare(a.protectedDate));
   }

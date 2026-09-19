@@ -45,6 +45,7 @@ interface MediaItem {
   thumbnailUrl?: string;
   placeholderColor?: string;
   owner?: string;
+  owners?: string[];
   s3Key?: string;
   thumbnailS3Key?: string;
 }
@@ -269,6 +270,7 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
           mixedVaccinationDate: dogRes.data.mixedVaccinationDate ?? undefined,
           prefecture: dogRes.data.prefecture,
           city: dogRes.data.city,
+          owners: (dogRes.data.owners ?? []).filter((v): v is string => !!v),
         };
 
         setDog(mappedDog);
@@ -290,6 +292,8 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
             contactPhone: orgRes.data.contactPhone ?? undefined,
             wishlistUrl: orgRes.data.wishlistUrl ?? undefined,
             websiteUrl: orgRes.data.websiteUrl ?? undefined,
+            ownerSub: orgRes.data.ownerSub ?? undefined,
+            owners: (orgRes.data.owners ?? []).filter((v): v is string => !!v),
           });
         }
       } catch (err) {
@@ -483,6 +487,7 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
           url: url.toString(),
           thumbnailUrl,
           owner: item.owner ?? undefined,
+          owners: (item.owners ?? []).filter((v): v is string => !!v),
           s3Key: item.s3Key,
           thumbnailS3Key: item.thumbnailS3Key ?? undefined,
         };
@@ -775,7 +780,18 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
         caption: uploadCaption || undefined,
         // EXIFから撮影日時が取得できない場合は投稿日時を撮影日時とする
         capturedAt: (capturedAt ?? new Date()).toISOString(),
-        owners: dog?.owners,
+        owners: (() => {
+          const ownersSet = new Set<string>();
+          (dog?.owners ?? []).forEach((o) => { if (o) ownersSet.add(o); });
+          if (organization?.ownerSub) ownersSet.add(organization.ownerSub);
+          (organization?.owners ?? []).forEach((o) => { if (o) ownersSet.add(o); });
+          if (currentUserSub && currentUserUsername) {
+            ownersSet.add(`${currentUserSub}::${currentUserUsername}`);
+          } else if (currentUserSub) {
+            ownersSet.add(currentUserSub);
+          }
+          return Array.from(ownersSet);
+        })(),
       };
       // data-schemaの型推論バグを回避するためas anyを使用(OrganizationDogDetailScreenと同様)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1065,15 +1081,20 @@ export function DogDetailScreen({ dogId, onBack, onSelectOrganization }: DogDeta
             {media.map((item) => {
               const liked = likedIds.has(item.id);
               const displayCount = item.likeCount;
+              const isMediaManager = Boolean(
+                currentUserSub &&
+                  ((organization?.ownerSub && isSameOwnerSub(organization.ownerSub, currentUserSub)) ||
+                    (organization?.owners ?? []).some((o) => isSameOwnerSub(o, currentUserSub)) ||
+                    (dog?.owners ?? []).some((o) => isSameOwnerSub(o, currentUserSub)))
+              );
               const isOwner =
-                item.owner &&
-                (item.owner === currentUserSub ||
-                  item.owner === currentUserUsername ||
-                  item.owner === `${currentUserSub}::${currentUserUsername}`);
+                isMediaManager ||
+                (item.owner && isSameOwnerSub(item.owner, currentUserSub)) ||
+                (item.owners ?? []).some((o) => isSameOwnerSub(o, currentUserSub));
               return (
                 <article key={item.id} className="media-card">
                   <span className="media-card__age-badge">
-                    {calculateAgeAtLabel(dog.birthDate, item.createdAt)}（{calculateElapsedLabel(item.createdAt)}）
+                    {dog.name ? `${dog.name} ` : ''}{calculateAgeAtLabel(dog.birthDate, item.createdAt)}（{calculateElapsedLabel(item.createdAt)}）
                   </span>
                   {isOwner && (
                     <button
