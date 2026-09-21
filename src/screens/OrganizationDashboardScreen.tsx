@@ -721,7 +721,7 @@ export function OrganizationDashboardScreen({
         rabiesVaccinationDate: values.rabiesVaccinationDate || undefined,
         mixedVaccinationDate: values.mixedVaccinationDate || undefined,
         owners,
-        ...(isNoLongerFostered ? { custodianOwnerSub: '' } : {}),
+        ...(isNoLongerFostered ? { custodianOwnerSub: null } : {}),
       };
 
       // 譲渡（ADOPTED）や返還、保護中など預かりが終了した場合、紐付くMatchをキャンセルしてスロットを空き状態に戻す
@@ -749,7 +749,7 @@ export function OrganizationDashboardScreen({
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await dataClient.models.Dog.update(dogInput as any);
+      const result = await dataClient.models.Dog.update(dogInput as any, { authMode: 'userPool' });
       if (result.errors?.length) {
         throw new Error(formatApiError(result.errors));
       }
@@ -767,7 +767,10 @@ export function OrganizationDashboardScreen({
           owners,
         };
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await dataClient.models.CustodyRecord.create(custodyInput as any);
+        const custodyRes = await dataClient.models.CustodyRecord.create(custodyInput as any, { authMode: 'userPool' });
+        if (custodyRes.errors?.length) {
+          throw new Error(formatApiError(custodyRes.errors));
+        }
       }
 
       setDogs(await fetchDogs());

@@ -607,10 +607,9 @@ export function OrganizationDogDetailScreen({ dog, organization: propOrg, onBack
     setFosterActionSubmitting(true);
     setFosterActionError(null);
     try {
-      // custodianOwnerSubをクリアする際はnullではなく空文字列を使う
-      // (VolunteerDashboardScreen.tsxのhandleReceiveDogのコメント参照)
+      // custodianOwnerSubをクリアする際はnullを使う(GSIキー属性に空文字列は指定できないため)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const dogResult = await dataClient.models.Dog.update({ id: dog.id, custodianOwnerSub: '' } as any, {
+      const dogResult = await dataClient.models.Dog.update({ id: dog.id, custodianOwnerSub: null } as any, {
         authMode: 'userPool',
       });
       if (dogResult.errors?.length) {
