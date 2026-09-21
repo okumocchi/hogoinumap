@@ -908,6 +908,7 @@ export function OrganizationDashboardScreen({
     return (
       <OrganizationDogDetailScreen
         dog={selectedDog}
+        organization={organization}
         onBack={() => setMode({ screen: 'list' })}
         onEdit={() => setMode({ screen: 'edit-dog', dogId: selectedDog.id })}
         onDogsChanged={async () => setDogs(await fetchDogs())}
