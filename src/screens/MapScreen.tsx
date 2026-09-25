@@ -137,16 +137,30 @@ export function MapScreen({
 
   const sortedVolunteerFosteredDogIds = useMemo(() => {
     const ids = volunteerFosterSummary.fosteredDogIds;
-    return [...ids].sort((idA, idB) => {
-      const dogA = allDogs.find((d) => d.id === idA);
-      const dogB = allDogs.find((d) => d.id === idB);
-      if (dogA && dogB) {
-        return dogB.protectedDate.localeCompare(dogA.protectedDate);
-      }
-      if (dogA) return -1;
-      if (dogB) return 1;
-      return 0;
-    });
+    return [...ids]
+      .filter((id) => {
+        const dog = allDogs.find((d) => d.id === id);
+        if (
+          dog &&
+          (dog.status === 'ADOPTED' ||
+            dog.status === 'RETURNED' ||
+            dog.status === 'PROTECTED' ||
+            dog.status === 'SUSPENDED')
+        ) {
+          return false;
+        }
+        return true;
+      })
+      .sort((idA, idB) => {
+        const dogA = allDogs.find((d) => d.id === idA);
+        const dogB = allDogs.find((d) => d.id === idB);
+        if (dogA && dogB) {
+          return dogB.protectedDate.localeCompare(dogA.protectedDate);
+        }
+        if (dogA) return -1;
+        if (dogB) return 1;
+        return 0;
+      });
   }, [volunteerFosterSummary.fosteredDogIds, allDogs]);
 
   function handleSheetClick() {

@@ -15,17 +15,32 @@ export function useRegisteredVolunteers(trigger = 0): Volunteer[] {
     async function load() {
       const session = await fetchAuthSession();
       const authMode = session.tokens ? 'userPool' : 'identityPool';
-      const [volunteerResult, slotResult, matchResult] = await Promise.all([
+      const [volunteerResult, slotResult, matchResult, dogResult] = await Promise.all([
         dataClient.models.Volunteer.list({ authMode }),
         dataClient.models.FosteringSlot.list({ authMode }),
         dataClient.models.Match.list({ authMode }),
+        dataClient.models.Dog.list({ authMode }),
       ]);
       if (cancelled) return;
 
-      // 使用中のスロット(CANCELLED以外の状態のMatchが紐づいているスロット)
+      const nonOccupantDogIds = new Set(
+        dogResult.data
+          .filter(
+            (d) =>
+              d.status === 'ADOPTED' ||
+              d.status === 'RETURNED' ||
+              d.status === 'PROTECTED' ||
+              d.status === 'SUSPENDED',
+          )
+          .map((d) => d.id),
+      );
+      const existingDogIds = new Set(dogResult.data.map((d) => d.id));
+
+      // 使用中のスロット(CANCELLED以外の状態かつ現在もボランティア預かり中である保護犬のMatchが紐づいているスロット)
       const busySlotIds = new Set(
         matchResult.data
-          .filter((m) => m.status !== 'CANCELLED')
+          .filter((m) => m.status !== 'CANCELLED' && m.slotId)
+          .filter((m) => existingDogIds.has(m.dogId) && !nonOccupantDogIds.has(m.dogId))
           .map((m) => m.slotId)
           .filter(Boolean),
       );
