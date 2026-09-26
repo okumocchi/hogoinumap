@@ -109,16 +109,40 @@ export function ChatWindow({ threadId, owners, myKey, myName, counterpartName, o
     setSending(true);
     setError(null);
     try {
-      const messageInput = { threadId, senderKey: myKey, senderName: myName, body, owners };
+      const now = new Date().toISOString();
+      const messageInput = { threadId, senderKey: myKey, senderName: myName, body, owners, createdAt: now };
       // Organization/Dog登録と同様、data-schemaの型推論バグを回避するためas anyを使用
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await dataClient.models.ChatMessage.create(messageInput as any);
+      const result = await dataClient.models.ChatMessage.create(messageInput as any, {
+        authMode: 'userPool',
+      });
       if (result.errors?.length) {
         throw new Error(formatApiError(result.errors));
       }
       setDraft('');
+
+      if (result.data) {
+        const sentItem: ChatMessageItem = {
+          id: result.data.id,
+          senderKey: result.data.senderKey,
+          senderName: result.data.senderName,
+          body: result.data.body,
+          createdAt: result.data.createdAt ?? now,
+        };
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === sentItem.id)) return prev;
+          return [...prev, sentItem];
+        });
+        scrollToBottom(true);
+      }
+
       const updatedMessages = await fetchMessages();
-      setMessages(updatedMessages);
+      setMessages((prev) => {
+        const map = new Map<string, ChatMessageItem>();
+        for (const m of prev) map.set(m.id, m);
+        for (const m of updatedMessages) map.set(m.id, m);
+        return Array.from(map.values()).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      });
       scrollToBottom(true);
     } catch (err) {
       setError(formatApiError(err, 'メッセージの送信に失敗しました。時間をおいて再度お試しください。'));
