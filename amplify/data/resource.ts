@@ -396,7 +396,7 @@ const schema = a.schema({
       createdAt: a.datetime(),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create']),
+      allow.authenticated().to(['read', 'create', 'delete']),
     ])
     .secondaryIndexes((index) => [
       index('threadId').sortKeys(['createdAt']).queryField('listGroupMessagesByThread'),

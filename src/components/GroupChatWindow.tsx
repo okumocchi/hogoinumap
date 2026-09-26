@@ -12,23 +12,71 @@ interface GroupChatMessageItem {
 }
 
 export interface GroupChatWindowProps {
-  threadId: string; // organizationId
+  threadId: string;
+  organizationId?: string;
   myKey: string;
   myName: string;
   organizationName: string;
+  canModerate?: boolean;
   onClose: () => void;
 }
 
 const POLL_INTERVAL_MS = 4000;
 
-export function GroupChatWindow({ threadId, myKey, myName, organizationName, onClose }: GroupChatWindowProps) {
+export function GroupChatWindow({
+  threadId,
+  organizationId,
+  myKey,
+  myName,
+  organizationName,
+  canModerate = false,
+  onClose,
+}: GroupChatWindowProps) {
   const [messages, setMessages] = useState<GroupChatMessageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState<GroupChatMessageItem | null>(null);
+  const [isModeratorUser, setIsModeratorUser] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const hasScrolledRef = useRef(false);
+
+  // ログインユーザーが保護団体アカウント自身、または該当団体のモデレータであるかを判定
+  useEffect(() => {
+    let cancelled = false;
+    async function checkModerator() {
+      if (organizationId && myKey === `organization#${organizationId}`) {
+        if (!cancelled) setIsModeratorUser(true);
+        return;
+      }
+      if (organizationId && myKey.startsWith('volunteer#')) {
+        const volId = myKey.replace('volunteer#', '');
+        try {
+          const affRes = await dataClient.models.Affiliation.list({
+            filter: {
+              organizationId: { eq: organizationId },
+              volunteerId: { eq: volId },
+            },
+            authMode: 'userPool',
+          });
+          const aff = affRes.data.find((a) => a.status === 'APPROVED');
+          if (aff?.isModerator && !cancelled) {
+            setIsModeratorUser(true);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+    checkModerator();
+    return () => {
+      cancelled = true;
+    };
+  }, [myKey, organizationId]);
+
+  const hasDeleteAuthority = canModerate || isModeratorUser;
 
   useEffect(() => {
     hasScrolledRef.current = false;
@@ -52,46 +100,56 @@ export function GroupChatWindow({ threadId, myKey, myName, organizationName, onC
   }, [draft]);
 
   async function fetchMessages(): Promise<GroupChatMessageItem[]> {
+    // 検索対象となる threadId の候補(threadId および organizationId があれば両方)
+    const targetThreadIds = Array.from(new Set([threadId, organizationId].filter((id): id is string => !!id)));
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let rawItems: any[] = [];
 
-    // 1. まず GSI インデックスによるソート取得を試みる
-    try {
-      const result = await dataClient.models.GroupChatMessage.listGroupMessagesByThread(
-        { threadId },
-        { sortDirection: 'ASC', authMode: 'userPool' },
-      );
-      if (result.data && result.data.length > 0) {
-        rawItems = result.data;
+    for (const tid of targetThreadIds) {
+      // 1. GSI インデックスによるソート取得
+      try {
+        const result = await dataClient.models.GroupChatMessage.listGroupMessagesByThread(
+          { threadId: tid },
+          { sortDirection: 'ASC', authMode: 'userPool' },
+        );
+        if (result.data && result.data.length > 0) {
+          rawItems.push(...result.data);
+        }
+      } catch (gsiErr) {
+        console.warn(`listGroupMessagesByThread failed for ${tid}:`, gsiErr);
       }
-    } catch (gsiErr) {
-      console.warn('listGroupMessagesByThread failed, trying fallback list:', gsiErr);
-    }
 
-    // 2. GSI で取得できない場合は、標準の list (filter) でフォールバック取得
-    if (rawItems.length === 0) {
+      // 2. 標準 list (filter) によるフォールバック取得
       try {
         const listResult = await dataClient.models.GroupChatMessage.list({
-          filter: { threadId: { eq: threadId } },
+          filter: { threadId: { eq: tid } },
+          limit: 1000,
           authMode: 'userPool',
         });
         if (listResult.data && listResult.data.length > 0) {
-          rawItems = listResult.data;
+          rawItems.push(...listResult.data);
         }
       } catch (listErr) {
-        console.warn('GroupChatMessage.list fallback failed:', listErr);
+        console.warn(`GroupChatMessage.list fallback failed for ${tid}:`, listErr);
       }
     }
 
-    return rawItems
-      .map((message) => ({
-        id: message.id,
-        senderKey: message.senderKey,
-        senderName: message.senderName,
-        body: message.body,
-        createdAt: message.createdAt ?? new Date().toISOString(),
-      }))
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    // 重複を id で排除
+    const map = new Map<string, GroupChatMessageItem>();
+    for (const message of rawItems) {
+      if (!map.has(message.id)) {
+        map.set(message.id, {
+          id: message.id,
+          senderKey: message.senderKey,
+          senderName: message.senderName,
+          body: message.body,
+          createdAt: message.createdAt ?? new Date().toISOString(),
+        });
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 
   useEffect(() => {
@@ -122,7 +180,7 @@ export function GroupChatWindow({ threadId, myKey, myName, organizationName, onC
       clearInterval(interval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [threadId]);
+  }, [threadId, organizationId]);
 
   function scrollToBottom(smooth = true) {
     requestAnimationFrame(() => {
@@ -156,25 +214,23 @@ export function GroupChatWindow({ threadId, myKey, myName, organizationName, onC
       const result = await dataClient.models.GroupChatMessage.create(messageInput as any, {
         authMode: 'userPool',
       });
-      if (result.errors?.length) {
-        throw new Error(formatApiError(result.errors));
+      if (result.errors?.length || !result.data) {
+        throw new Error(formatApiError(result.errors, 'データベースへのメッセージ保存に失敗しました。'));
       }
       setDraft('');
 
-      if (result.data) {
-        const sentItem: GroupChatMessageItem = {
-          id: result.data.id,
-          senderKey: result.data.senderKey,
-          senderName: result.data.senderName,
-          body: result.data.body,
-          createdAt: result.data.createdAt ?? now,
-        };
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === sentItem.id)) return prev;
-          return [...prev, sentItem];
-        });
-        scrollToBottom(true);
-      }
+      const sentItem: GroupChatMessageItem = {
+        id: result.data.id,
+        senderKey: result.data.senderKey,
+        senderName: result.data.senderName,
+        body: result.data.body,
+        createdAt: result.data.createdAt ?? now,
+      };
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === sentItem.id)) return prev;
+        return [...prev, sentItem];
+      });
+      scrollToBottom(true);
 
       const updatedMessages = await fetchMessages();
       setMessages((prev) => {
@@ -188,6 +244,26 @@ export function GroupChatWindow({ threadId, myKey, myName, organizationName, onC
       setError(formatApiError(err, 'メッセージの送信に失敗しました。時間をおいて再度お試しください。'));
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleConfirmDelete(target: GroupChatMessageItem) {
+    setDeleting(true);
+    setError(null);
+    try {
+      const result = await dataClient.models.GroupChatMessage.delete(
+        { id: target.id },
+        { authMode: 'userPool' },
+      );
+      if (result.errors?.length) {
+        throw new Error(formatApiError(result.errors, 'メッセージの削除に失敗しました。'));
+      }
+      setMessages((prev) => prev.filter((m) => m.id !== target.id));
+      setMessageToDelete(null);
+    } catch (err) {
+      setError(formatApiError(err, 'メッセージの削除に失敗しました。'));
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -208,6 +284,7 @@ export function GroupChatWindow({ threadId, myKey, myName, organizationName, onC
         ) : (
           messages.map((message) => {
             const isMine = message.senderKey === myKey;
+            const canDelete = isMine || hasDeleteAuthority;
             return (
               <div
                 key={message.id}
@@ -228,6 +305,17 @@ export function GroupChatWindow({ threadId, myKey, myName, organizationName, onC
                       minute: '2-digit',
                     })}
                   </span>
+                  {canDelete && (
+                    <button
+                      type="button"
+                      className="chat-window__delete-btn"
+                      onClick={() => setMessageToDelete(message)}
+                      aria-label="メッセージを削除"
+                      title={isMine ? 'メッセージを削除' : '管理者/モデレータとして削除'}
+                    >
+                      🗑️
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -236,6 +324,36 @@ export function GroupChatWindow({ threadId, myKey, myName, organizationName, onC
       </div>
 
       {error && <p className="chat-window__error">{error}</p>}
+
+      {messageToDelete && (
+        <div className="chat-window__confirm-overlay" onClick={() => !deleting && setMessageToDelete(null)}>
+          <div className="chat-window__confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <p className="chat-window__confirm-title">メッセージの削除</p>
+            <p className="chat-window__confirm-text">
+              このメッセージを削除しますか？<br />
+              削除したメッセージは元に戻せません。
+            </p>
+            <div className="chat-window__confirm-actions">
+              <button
+                type="button"
+                className="chat-window__confirm-cancel"
+                disabled={deleting}
+                onClick={() => setMessageToDelete(null)}
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                className="chat-window__confirm-delete"
+                disabled={deleting}
+                onClick={() => handleConfirmDelete(messageToDelete)}
+              >
+                {deleting ? '削除中…' : '削除する'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <form
         className="chat-window__composer"

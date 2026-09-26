@@ -176,3 +176,144 @@
   font-weight: 600;
   opacity: 0.8;
 }
+
+/* メッセージ削除ボタン */
+.chat-window__delete-btn {
+  border: none;
+  background: none;
+  color: var(--text);
+  opacity: 0;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 11px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.chat-window__bubble-wrapper:hover .chat-window__delete-btn,
+.chat-window__delete-btn:focus-visible {
+  opacity: 0.6;
+}
+
+.chat-window__delete-btn:hover {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+@media (hover: none) {
+  .chat-window__delete-btn {
+    opacity: 0.5;
+  }
+}
+
+/* 削除確認モーダルオーバーレイ */
+.chat-window__confirm-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 30;
+  backdrop-filter: blur(2px);
+  animation: chat-fade-in 0.15s ease-out;
+}
+
+@keyframes chat-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.chat-window__confirm-modal {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  width: 100%;
+  max-width: 280px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  animation: chat-scale-in 0.15s ease-out;
+}
+
+@keyframes chat-scale-in {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.chat-window__confirm-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.chat-window__confirm-text {
+  margin: 0 0 16px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.chat-window__confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.chat-window__confirm-cancel {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: var(--social-bg);
+  color: var(--text-h);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.chat-window__confirm-cancel:hover:not(:disabled) {
+  background: var(--border);
+}
+
+.chat-window__confirm-delete {
+  flex: 1;
+  border: none;
+  background: #dc2626;
+  color: #ffffff;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.chat-window__confirm-delete:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.chat-window__confirm-cancel:disabled,
+.chat-window__confirm-delete:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

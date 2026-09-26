@@ -37,11 +37,13 @@ type Route =
 
 interface ActiveChat {
   threadId: string;
+  organizationId?: string;
   owners?: string[];
   myKey: string;
   myName: string;
   counterpartName: string;
   isGroup?: boolean;
+  canModerate?: boolean;
 }
 
 function ModeratorOrgDashboardLoader({
@@ -155,6 +157,9 @@ function App() {
     function markAsRead() {
       if (activeChat!.isGroup) {
         localStorage.setItem(`group_chat_last_read_at:${activeChat!.threadId}`, new Date().toISOString());
+        if (activeChat!.organizationId) {
+          localStorage.setItem(`group_chat_last_read_at:${activeChat!.organizationId}`, new Date().toISOString());
+        }
       } else {
         localStorage.setItem(`chat_last_read_at:${activeChat!.threadId}`, new Date().toISOString());
       }
@@ -230,13 +235,36 @@ function App() {
         : null;
     if (!me) return;
 
+    let canModerate = false;
+    if (myOrganization && myOrganization.id === orgId) {
+      canModerate = true;
+    } else if (myVolunteer) {
+      try {
+        const affRes = await dataClient.models.Affiliation.list({
+          filter: {
+            organizationId: { eq: orgId },
+            volunteerId: { eq: myVolunteer.id },
+          },
+          authMode: 'userPool',
+        });
+        const aff = affRes.data.find((a) => a.status === 'APPROVED');
+        if (aff?.isModerator) {
+          canModerate = true;
+        }
+      } catch (e) {
+        console.warn('Failed to check moderator status for group chat:', e);
+      }
+    }
+
     const thread = await findOrCreateGroupChatThread(orgId, orgName);
     setActiveChat({
       threadId: thread.id,
+      organizationId: orgId,
       myKey: chatParticipantKey(me.kind, me.id),
       myName: me.name,
       counterpartName: thread.organizationName,
       isGroup: true,
+      canModerate,
     });
   }
 
@@ -426,9 +454,11 @@ function App() {
         activeChat.isGroup ? (
           <GroupChatWindow
             threadId={activeChat.threadId}
+            organizationId={activeChat.organizationId}
             myKey={activeChat.myKey}
             myName={activeChat.myName}
             organizationName={activeChat.counterpartName}
+            canModerate={activeChat.canModerate}
             onClose={() => setActiveChat(null)}
           />
         ) : (

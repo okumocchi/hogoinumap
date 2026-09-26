@@ -59,6 +59,7 @@ export async function findOrCreateChatThread(me: ChatParticipant, other: ChatPar
 
 export interface GroupChatThreadRef {
   id: string;
+  organizationId: string;
   organizationName: string;
 }
 
@@ -66,12 +67,43 @@ export async function findOrCreateGroupChatThread(
   organizationId: string,
   organizationName: string,
 ): Promise<GroupChatThreadRef> {
-  const result = await dataClient.models.GroupChatThread.get({ id: organizationId }, { authMode: 'userPool' });
-  if (result.data) {
-    return { id: result.data.id, organizationName: result.data.organizationName };
+  // 1. organizationIdフィールドで既存スレッドを検索(既存スレッドがある場合は確実にそれを再利用)
+  try {
+    const listResult = await dataClient.models.GroupChatThread.list({
+      filter: { organizationId: { eq: organizationId } },
+      authMode: 'userPool',
+    });
+    if (listResult.data && listResult.data.length > 0) {
+      // 過去に複数作成されてしまっていた場合は作成日時順(最古)で安定させる
+      const sorted = [...listResult.data].sort((a, b) =>
+        (a.createdAt ?? '').localeCompare(b.createdAt ?? ''),
+      );
+      const existing = sorted[0];
+      return {
+        id: existing.id,
+        organizationId: existing.organizationId ?? organizationId,
+        organizationName: existing.organizationName ?? organizationName,
+      };
+    }
+  } catch (err) {
+    console.warn('GroupChatThread.list filter failed:', err);
   }
 
-  // なければ作成
+  // 2. id = organizationId での直接取得も試みる
+  try {
+    const result = await dataClient.models.GroupChatThread.get({ id: organizationId }, { authMode: 'userPool' });
+    if (result.data) {
+      return {
+        id: result.data.id,
+        organizationId: result.data.organizationId ?? organizationId,
+        organizationName: result.data.organizationName ?? organizationName,
+      };
+    }
+  } catch (err) {
+    console.warn('GroupChatThread.get failed:', err);
+  }
+
+  // 3. なければ新規作成
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const threadInput: any = {
     id: organizationId,
@@ -84,5 +116,9 @@ export async function findOrCreateGroupChatThread(
     throw new Error(createResult.errors?.map((e) => e.message).join(' / ') ?? 'グループチャットの開始に失敗しました。');
   }
 
-  return { id: createResult.data.id, organizationName: createResult.data.organizationName };
+  return {
+    id: createResult.data.id,
+    organizationId: createResult.data.organizationId ?? organizationId,
+    organizationName: createResult.data.organizationName ?? organizationName,
+  };
 }

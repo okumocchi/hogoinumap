@@ -208,42 +208,59 @@ export function useDashboardBadges(
       }
 
       const groupPromises = Array.from(groupChatOrgIds).map(async (orgId) => {
-        const lastReadStr = localStorage.getItem(`group_chat_last_read_at:${orgId}`) || '0';
-        const lastReadTime = new Date(lastReadStr).getTime();
-
-        if (orgId === activeChatThreadId) {
-          groupChatUnreads[orgId] = 0;
-          return;
-        }
-
-        const threadRes = await dataClient.models.GroupChatThread.get({ id: orgId }, { authMode: 'userPool' });
-        if (!threadRes.data) {
-          groupChatUnreads[orgId] = 0;
-          return;
-        }
-
-        let lastMsg: { senderKey?: string; createdAt?: string | null } | undefined;
+        let actualThreadId = orgId;
         try {
-          const msgResult = await dataClient.models.GroupChatMessage.listGroupMessagesByThread(
-            { threadId: orgId },
-            { limit: 1, sortDirection: 'DESC', authMode: 'userPool' },
-          );
-          lastMsg = msgResult.data[0];
+          const listRes = await dataClient.models.GroupChatThread.list({
+            filter: { organizationId: { eq: orgId } },
+            authMode: 'userPool',
+          });
+          if (listRes.data && listRes.data.length > 0) {
+            actualThreadId = listRes.data[0].id;
+          }
         } catch {
-          // ignore GSI error
+          // ignore
         }
 
-        if (!lastMsg) {
+        if (orgId === activeChatThreadId || actualThreadId === activeChatThreadId) {
+          groupChatUnreads[orgId] = 0;
+          return;
+        }
+
+        const readStr1 = localStorage.getItem(`group_chat_last_read_at:${orgId}`) || '0';
+        const readStr2 = localStorage.getItem(`group_chat_last_read_at:${actualThreadId}`) || '0';
+        const lastReadTime = Math.max(new Date(readStr1).getTime(), new Date(readStr2).getTime());
+
+        const candidateThreadIds = Array.from(new Set([orgId, actualThreadId]));
+        let lastMsg: { senderKey?: string; createdAt?: string | null } | undefined;
+
+        for (const tid of candidateThreadIds) {
+          try {
+            const msgResult = await dataClient.models.GroupChatMessage.listGroupMessagesByThread(
+              { threadId: tid },
+              { limit: 1, sortDirection: 'DESC', authMode: 'userPool' },
+            );
+            if (msgResult.data?.[0]) {
+              if (!lastMsg || (msgResult.data[0].createdAt ?? '') > (lastMsg.createdAt ?? '')) {
+                lastMsg = msgResult.data[0];
+              }
+            }
+          } catch {
+            // ignore GSI error
+          }
+
           try {
             const listResult = await dataClient.models.GroupChatMessage.list({
-              filter: { threadId: { eq: orgId } },
+              filter: { threadId: { eq: tid } },
+              limit: 50,
               authMode: 'userPool',
             });
-            if (listResult.data.length > 0) {
+            if (listResult.data && listResult.data.length > 0) {
               const sorted = [...listResult.data].sort((a, b) =>
                 (b.createdAt ?? '').localeCompare(a.createdAt ?? ''),
               );
-              lastMsg = sorted[0];
+              if (!lastMsg || (sorted[0].createdAt ?? '') > (lastMsg.createdAt ?? '')) {
+                lastMsg = sorted[0];
+              }
             }
           } catch {
             // ignore

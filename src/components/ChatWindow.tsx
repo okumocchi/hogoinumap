@@ -28,6 +28,8 @@ export function ChatWindow({ threadId, owners, myKey, myName, counterpartName, o
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState<ChatMessageItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const hasScrolledRef = useRef(false);
@@ -151,6 +153,26 @@ export function ChatWindow({ threadId, owners, myKey, myName, counterpartName, o
     }
   }
 
+  async function handleConfirmDelete(target: ChatMessageItem) {
+    setDeleting(true);
+    setError(null);
+    try {
+      const result = await dataClient.models.ChatMessage.delete(
+        { id: target.id },
+        { authMode: 'userPool' },
+      );
+      if (result.errors?.length) {
+        throw new Error(formatApiError(result.errors, 'メッセージの削除に失敗しました。'));
+      }
+      setMessages((prev) => prev.filter((m) => m.id !== target.id));
+      setMessageToDelete(null);
+    } catch (err) {
+      setError(formatApiError(err, 'メッセージの削除に失敗しました。'));
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="chat-window">
       <header className="chat-window__header">
@@ -166,30 +188,74 @@ export function ChatWindow({ threadId, owners, myKey, myName, counterpartName, o
         ) : messages.length === 0 ? (
           <p className="chat-window__empty">まだメッセージはありません</p>
         ) : (
-          messages.map((message) => (
-            <div
-              key={message.id}
-              className={`chat-window__bubble-row ${message.senderKey === myKey ? 'chat-window__bubble-row--mine' : ''}`}
-            >
-              <div className="chat-window__bubble-wrapper">
-                <div className="chat-window__bubble">
-                  <p className="chat-window__bubble-body">{message.body}</p>
+          messages.map((message) => {
+            const isMine = message.senderKey === myKey;
+            return (
+              <div
+                key={message.id}
+                className={`chat-window__bubble-row ${isMine ? 'chat-window__bubble-row--mine' : ''}`}
+              >
+                <div className="chat-window__bubble-wrapper">
+                  <div className="chat-window__bubble">
+                    <p className="chat-window__bubble-body">{message.body}</p>
+                  </div>
+                  <span className="chat-window__bubble-time">
+                    {new Date(message.createdAt).toLocaleString('ja-JP', {
+                      month: 'numeric',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                  {isMine && (
+                    <button
+                      type="button"
+                      className="chat-window__delete-btn"
+                      onClick={() => setMessageToDelete(message)}
+                      aria-label="メッセージを削除"
+                      title="メッセージを削除"
+                    >
+                      🗑️
+                    </button>
+                  )}
                 </div>
-                <span className="chat-window__bubble-time">
-                  {new Date(message.createdAt).toLocaleString('ja-JP', {
-                    month: 'numeric',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
       {error && <p className="chat-window__error">{error}</p>}
+
+      {messageToDelete && (
+        <div className="chat-window__confirm-overlay" onClick={() => !deleting && setMessageToDelete(null)}>
+          <div className="chat-window__confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <p className="chat-window__confirm-title">メッセージの削除</p>
+            <p className="chat-window__confirm-text">
+              このメッセージを削除しますか？<br />
+              削除したメッセージは元に戻せません。
+            </p>
+            <div className="chat-window__confirm-actions">
+              <button
+                type="button"
+                className="chat-window__confirm-cancel"
+                disabled={deleting}
+                onClick={() => setMessageToDelete(null)}
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                className="chat-window__confirm-delete"
+                disabled={deleting}
+                onClick={() => handleConfirmDelete(messageToDelete)}
+              >
+                {deleting ? '削除中…' : '削除する'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <form
         className="chat-window__composer"
