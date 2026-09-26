@@ -222,11 +222,34 @@ export function useDashboardBadges(
           return;
         }
 
-        const msgResult = await dataClient.models.GroupChatMessage.listGroupMessagesByThread(
-          { threadId: orgId },
-          { limit: 1, sortDirection: 'DESC', authMode: 'userPool' }
-        );
-        const lastMsg = msgResult.data[0];
+        let lastMsg: { senderKey?: string; createdAt?: string | null } | undefined;
+        try {
+          const msgResult = await dataClient.models.GroupChatMessage.listGroupMessagesByThread(
+            { threadId: orgId },
+            { limit: 1, sortDirection: 'DESC', authMode: 'userPool' },
+          );
+          lastMsg = msgResult.data[0];
+        } catch {
+          // ignore GSI error
+        }
+
+        if (!lastMsg) {
+          try {
+            const listResult = await dataClient.models.GroupChatMessage.list({
+              filter: { threadId: { eq: orgId } },
+              authMode: 'userPool',
+            });
+            if (listResult.data.length > 0) {
+              const sorted = [...listResult.data].sort((a, b) =>
+                (b.createdAt ?? '').localeCompare(a.createdAt ?? ''),
+              );
+              lastMsg = sorted[0];
+            }
+          } catch {
+            // ignore
+          }
+        }
+
         if (lastMsg && lastMsg.senderKey !== myKey) {
           const msgTime = new Date(lastMsg.createdAt ?? '').getTime();
           if (msgTime > lastReadTime) {

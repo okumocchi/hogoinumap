@@ -52,17 +52,46 @@ export function GroupChatWindow({ threadId, myKey, myName, organizationName, onC
   }, [draft]);
 
   async function fetchMessages(): Promise<GroupChatMessageItem[]> {
-    const result = await dataClient.models.GroupChatMessage.listGroupMessagesByThread(
-      { threadId },
-      { sortDirection: 'ASC', authMode: 'userPool' },
-    );
-    return result.data.map((message) => ({
-      id: message.id,
-      senderKey: message.senderKey,
-      senderName: message.senderName,
-      body: message.body,
-      createdAt: message.createdAt ?? new Date().toISOString(),
-    }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let rawItems: any[] = [];
+
+    // 1. まず GSI インデックスによるソート取得を試みる
+    try {
+      const result = await dataClient.models.GroupChatMessage.listGroupMessagesByThread(
+        { threadId },
+        { sortDirection: 'ASC', authMode: 'userPool' },
+      );
+      if (result.data && result.data.length > 0) {
+        rawItems = result.data;
+      }
+    } catch (gsiErr) {
+      console.warn('listGroupMessagesByThread failed, trying fallback list:', gsiErr);
+    }
+
+    // 2. GSI で取得できない場合は、標準の list (filter) でフォールバック取得
+    if (rawItems.length === 0) {
+      try {
+        const listResult = await dataClient.models.GroupChatMessage.list({
+          filter: { threadId: { eq: threadId } },
+          authMode: 'userPool',
+        });
+        if (listResult.data && listResult.data.length > 0) {
+          rawItems = listResult.data;
+        }
+      } catch (listErr) {
+        console.warn('GroupChatMessage.list fallback failed:', listErr);
+      }
+    }
+
+    return rawItems
+      .map((message) => ({
+        id: message.id,
+        senderKey: message.senderKey,
+        senderName: message.senderName,
+        body: message.body,
+        createdAt: message.createdAt ?? new Date().toISOString(),
+      }))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 
   useEffect(() => {
@@ -71,7 +100,16 @@ export function GroupChatWindow({ threadId, myKey, myName, organizationName, onC
     async function load() {
       const fetched = await fetchMessages();
       if (!cancelled) {
-        setMessages(fetched);
+        setMessages((prev) => {
+          // 取得結果が空で、ローカルに既にメッセージがある場合は消さない
+          if (fetched.length === 0 && prev.length > 0) {
+            return prev;
+          }
+          const map = new Map<string, GroupChatMessageItem>();
+          for (const m of prev) map.set(m.id, m);
+          for (const m of fetched) map.set(m.id, m);
+          return Array.from(map.values()).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        });
         setLoading(false);
       }
     }
